@@ -1,0 +1,436 @@
+<script src="<?= base_url() ?>assets/vendors/js/vendor.bundle.base.js"></script>
+<script src="<?= base_url() ?>assets/js/off-canvas.js"></script>
+<script src="<?= base_url() ?>assets/js/hoverable-collapse.js"></script>
+<script src="<?= base_url() ?>assets/js/template.js"></script>
+<script src="<?= base_url() ?>assets/js/settings.js"></script>
+<script src="<?= base_url() ?>assets/js/todolist.js"></script>
+
+<!-- File Upload JS-->
+<!-- <script src="<?= base_url() ?>assets/js/file-upload.js"></script> -->
+
+<!-- Datatable -->
+<script src="<?= base_url() ?>assets/vendors/datatables.net/jquery.dataTables.js"></script>
+<script src="<?= base_url() ?>assets/vendors/datatables.net-bs4/dataTables.bootstrap4.js"></script>
+<!-- End Datatable -->
+
+<!-- jQuery Validation JS -->
+<script src="<?= base_url() ?>assets/vendors/jquery-validation/jquery.validate.min.js"></script>
+
+<script>
+if (typeof window.jQuery !== 'undefined' && window.jQuery.validator) {
+    (function($){
+        window.AppFormValidation = window.AppFormValidation || {
+            initCustomMethods: function() {
+                if (!$.validator.methods.indianPhone) {
+                    $.validator.addMethod('indianPhone', function(value, element) {
+                        if (this.optional(element)) {
+                            return true;
+                        }
+
+                        var normalized = value.replace(/[()\s-]/g, '');
+                        normalized = normalized.replace(/^\+91/, '');
+                        normalized = normalized.replace(/^91(?=\d{10}$)/, '');
+
+                        var isMobile = /^[6-9]\d{9}$/.test(normalized);
+                        var isLandlineWithZero = /^0\d{10,11}$/.test(normalized);
+                        var isLandlineWithoutZero = /^[1-5]\d{9,10}$/.test(normalized);
+
+                        return isMobile || isLandlineWithZero || isLandlineWithoutZero;
+                    }, 'Please enter a valid Indian mobile or landline number.');
+                }
+
+                if (!$.validator.methods.indianGstin) {
+                    $.validator.addMethod('indianGstin', function(value, element) {
+                        if (this.optional(element)) {
+                            return true;
+                        }
+                        return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test($.trim(value));
+                    }, 'Please enter a valid GSTIN.');
+                }
+
+                if (!$.validator.methods.imageExtension) {
+                    $.validator.addMethod('imageExtension', function(value, element) {
+                        if (this.optional(element) || !value) {
+                            return true;
+                        }
+
+                        return /\.(jpe?g|png|webp)$/i.test(value);
+                    }, 'Only JPG, JPEG, PNG, or WEBP files are allowed.');
+                }
+            },
+            defaultErrorPlacement: function(label, element) {
+                label.addClass('mt-2 text-danger w-100');
+                label.insertAfter(element);
+            },
+            defaultHighlight: function(element) {
+                $(element).parent().addClass('has-danger');
+                $(element).addClass('form-control-danger');
+            },
+            defaultUnhighlight: function(element) {
+                $(element).parent().removeClass('has-danger');
+                $(element).removeClass('form-control-danger');
+            },
+            bindAjaxSubmit: function(formSelector, options) {
+                if (!$(formSelector).length) {
+                    return;
+                }
+
+                $(formSelector).validate({
+                    rules: options.rules || {},
+                    messages: options.messages || {},
+                    errorPlacement: this.defaultErrorPlacement,
+                    highlight: this.defaultHighlight,
+                    unhighlight: this.defaultUnhighlight,
+                    submitHandler: function(form) {
+                        var $btn = $(options.submitButtonSelector || '#submitBtn');
+                        $btn.attr('disabled', true).val(options.loadingText || 'Submitting...');
+
+                        $.ajax({
+                            url: $(form).attr('action'),
+                            type: 'POST',
+                            data: new FormData(form),
+                            processData: false,
+                            contentType: false,
+                            success: function(response) {
+                                if (response.status && response.redirect) {
+                                    alert(response.message);
+                                    window.location.href = response.redirect;
+                                } else {
+                                    alert(response.message || 'Something went wrong!');
+                                    $btn.attr('disabled', false).val(options.submitText || 'Submit');
+                                }
+                            },
+                            error: function(xhr) {
+                                var resp = xhr.responseJSON;
+                                alert(resp?.message || 'Error: ' + xhr.status);
+                                $btn.attr('disabled', false).val(options.submitText || 'Submit');
+                            }
+                        });
+
+                        return false;
+                    }
+                });
+            }
+        };
+    })(window.jQuery);
+}
+</script>
+
+<!-- Merchant Module JS -->
+<?php if(trim(strtolower(current_controller())) == 'merchant' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?> 
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
+            var formSelector = isEdit ? '#editMerchant' : '#addMerchant';
+            var submitText = isEdit ? 'Update' : 'Submit';
+            var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit(formSelector, {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: submitText,
+                    loadingText: loadingText,
+                    rules: {
+                        merchant_name: {
+                            required: true
+                        },
+                        merchant_type: {
+                            required: true
+                        },
+                        phone: {
+                            required: true,
+                            indianPhone: true
+                        },
+                        email: {
+                            email: true
+                        },
+                        shop_name: {
+                            required: {
+                                depends: function() {
+                                    return $('#merchant_type').val() === 'shop';
+                                }
+                            }
+                        },
+                        shop_address: {
+                            required: {
+                                depends: function() {
+                                    return $('#merchant_type').val() === 'shop';
+                                }
+                            }
+                        },
+                        gstin: {
+                            indianGstin: true
+                        },
+                        shop_logo: {
+                            imageExtension: true
+                        },
+                        profile_logo: {
+                            imageExtension: true
+                        },
+                        commission_percent: {
+                            required: true,
+                            number: true,
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    messages: {
+                        merchant_name: 'Please enter merchant name',
+                        merchant_type: 'Please select merchant type',
+                        phone: {
+                            required: 'Please enter phone number',
+                            indianPhone: 'Please enter a valid Indian mobile or landline number'
+                        },
+                        email: 'Please enter a valid email address',
+                        shop_name: {
+                            required: 'Please enter shop name'
+                        },
+                        shop_address: {
+                            required: 'Please enter shop address'
+                        },
+                        gstin: {
+                            indianGstin: 'Please enter a valid GSTIN'
+                        },
+                        shop_logo: {
+                            imageExtension: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
+                        },
+                        profile_logo: {
+                            imageExtension: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
+                        },
+                        commission_percent: 'Please enter commission between 0 and 100'
+                    }
+                });
+            }
+
+            // Toggle merchant type fields
+            $(document).on('change', '#merchant_type', function() {
+                var type = $(this).val();
+                if (type === 'individual') {
+                    $('#personalAddressGroup').show();
+                    $('#profileLogoGroup').show();
+                    $('#shopNameGroup').hide();
+                    $('#shopAddressGroup').hide();
+                    $('#gstinGroup').hide();
+                    $('#shopLogoGroup').hide();
+                    $('#shop_name, #shop_address').prop('required', false);
+                    $('#shop_logo').val('');
+                } else if (type === 'shop') {
+                    $('#personalAddressGroup').hide();
+                    $('#profileLogoGroup').hide();
+                    $('#shopNameGroup').show();
+                    $('#shopAddressGroup').show();
+                    $('#gstinGroup').show();
+                    $('#shopLogoGroup').show();
+                    $('#shop_name, #shop_address').prop('required', true);
+                    $('#profile_logo').val('');
+                } else {
+                    $('#personalAddressGroup').hide();
+                    $('#profileLogoGroup').hide();
+                    $('#shopNameGroup').hide();
+                    $('#shopAddressGroup').hide();
+                    $('#gstinGroup').hide();
+                    $('#shopLogoGroup').hide();
+                    $('#shop_name, #shop_address').prop('required', false);
+                    $('#shop_logo, #profile_logo').val('');
+                }
+            });
+
+            $('#merchant_type').trigger('change');
+        });
+    })(window.jQuery);
+} else {
+    console.error('jQuery is not loaded. Check vendor.bundle.base.js path.');
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'merchant' && trim(strtolower(current_method())) == 'index'): ?> 
+<script>
+var merchantTable;
+$(document).ready(function(){
+    // Initialize DataTables
+    merchantTable = $('#merchantTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('merchant/getMerchantListJson') ?>",
+            type: "POST"
+        },
+        columns: [
+            { data: "merchant_name" },
+            { data: "merchant_type" },
+            { data: "logo" },
+            { data: "phone" },
+            { data: "email" },
+            { data: "commission_percent" },
+            { data: "is_active" },
+            { data: "created_at" },
+            { data: "action" }
+        ],
+        order: [[7,"desc"]],
+        columnDefs: [
+            { orderable: false, targets: [2, 8] } // Disable sorting on logo and action columns
+        ]
+    });
+
+    // Handle Delete Merchant
+    $(document).on('click','.deleteMerchant', function(){
+        var merchantCode = $(this).data('id');
+        if(confirm("Are you sure you want to delete this merchant?")){
+            $.ajax({
+                url: '<?= site_url("merchant/delete") ?>/'+merchantCode,
+                type: 'POST',
+                success: function(response){
+                    alert(response.message);
+                    merchantTable.ajax.reload(null,false);
+                },
+                error: function(){
+                    alert('Error deleting merchant.');
+                }
+            });
+        }
+    });
+});
+</script>
+<?php endif; ?>
+
+<!-- Employee Module JS -->
+<?php if(trim(strtolower(current_controller())) == 'employee' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
+            var formSelector = isEdit ? '#editEmployee' : '#addEmployee';
+            var submitText = isEdit ? 'Update' : 'Submit';
+            var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit(formSelector, {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: submitText,
+                    loadingText: loadingText,
+                    rules: {
+                        name: {
+                            required: true
+                        },
+                        email: {
+                            required: true,
+                            email: true
+                        },
+                        mobileno: {
+                            required: true,
+                            indianPhone: true
+                        },
+                        user_type: {
+                            required: true
+                        },
+                        profile_image: {
+                            imageExtension: true
+                        },
+                        id_proof_front_image: {
+                            imageExtension: true
+                        },
+                        id_proof_back_image: {
+                            imageExtension: true
+                        },
+                        password: {
+                            required: !isEdit,
+                            minlength: 6
+                        },
+                        confirm_password: {
+                            required: {
+                                depends: function() {
+                                    return !isEdit || $('#password').val().length > 0;
+                                }
+                            },
+                            minlength: 6,
+                            equalTo: '#password'
+                        }
+                    },
+                    messages: {
+                        name: 'Please enter employee name',
+                        email: {
+                            required: 'Please enter email address',
+                            email: 'Please enter a valid email address'
+                        },
+                        mobileno: {
+                            required: 'Please enter mobile number',
+                            indianPhone: 'Please enter a valid Indian mobile or landline number'
+                        },
+                        user_type: 'Please select employee role',
+                        profile_image: 'Only JPG, JPEG, PNG, or WEBP files are allowed',
+                        id_proof_front_image: 'Only JPG, JPEG, PNG, or WEBP files are allowed',
+                        id_proof_back_image: 'Only JPG, JPEG, PNG, or WEBP files are allowed',
+                        password: {
+                            required: 'Please enter password',
+                            minlength: 'Password must be at least 6 characters'
+                        },
+                        confirm_password: {
+                            required: 'Please confirm password',
+                            minlength: 'Confirm password must be at least 6 characters',
+                            equalTo: 'Confirm password must match password'
+                        }
+                    }
+                });
+            }
+        });
+    })(window.jQuery);
+} else {
+    console.error('jQuery is not loaded. Check vendor.bundle.base.js path.');
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'employee' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+var employeeTable;
+$(document).ready(function(){
+    employeeTable = $('#employeeTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('employee/getEmployeeListJson') ?>",
+            type: 'POST'
+        },
+        columns: [
+            { data: 'profile_image' },
+            { data: 'name' },
+            { data: 'email' },
+            { data: 'mobileno' },
+            { data: 'user_type' },
+            { data: 'is_active' },
+            { data: 'last_login_at' },
+            { data: 'created_at' },
+            { data: 'action' }
+        ],
+        order: [[7, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [0, 8] }
+        ]
+    });
+
+    $(document).on('click', '.deleteEmployee', function(){
+        var employeeCode = $(this).data('id');
+        if (confirm('Are you sure you want to delete this employee?')) {
+            $.ajax({
+                url: '<?= site_url("employee/delete") ?>/' + employeeCode,
+                type: 'POST',
+                success: function(response){
+                    alert(response.message);
+                    employeeTable.ajax.reload(null, false);
+                },
+                error: function(xhr){
+                    var resp = xhr.responseJSON;
+                    alert(resp?.message || 'Error deleting employee.');
+                }
+            });
+        }
+    });
+});
+</script>
+<?php endif; ?>
