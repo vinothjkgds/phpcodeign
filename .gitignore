@@ -16,3 +16,14 @@ application/logs/*
 !application/logs/index.html
 !application/logs/.htaccess
 /vendor/
+
+# Local environment files
+.env
+.DS_Store
+
+# CodeIgniter 4 runtime directory (keep placeholders only)
+writable/*
+!writable/index.html
+!writable/.htaccess
+writable/uploads/*
+!writable/uploads/index.html
