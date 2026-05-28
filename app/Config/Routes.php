@@ -51,6 +51,12 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
     $routes->post('delete/(:segment)', 'Product::delete/$1');
 });
 
+//Shop
+$routes->group('shop', ['filter' => 'auth'], function($routes) {
+    $routes->get('', 'Shop::index');
+    $routes->post('save', 'Shop::save');
+});
+
 //Sale / Purchase
 $routes->group('salepurchase', ['filter' => 'auth'], function($routes) {
     $routes->get('', 'Salepurchase::index');

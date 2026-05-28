@@ -6,6 +6,21 @@ $entryTypeRaw = (string) ($invoiceData['entry_type'] ?? '');
 $entryTypeLabel = ucwords(str_replace('_', ' ', $entryTypeRaw));
 $invoiceNumber = !empty($invoiceData['txn_ref']) ? (string) $invoiceData['txn_ref'] : 'INV-' . str_pad((string) ((int) ($invoiceData['ledger_id'] ?? 0)), 6, '0', STR_PAD_LEFT);
 
+$isTradeEntry = in_array($entryTypeRaw, ['sale', 'purchase'], true);
+$documentTitle = match ($entryTypeRaw) {
+    'payment_received' => 'Payment Receipt',
+    'payment_paid' => 'Payment Voucher',
+    'opening' => 'Opening Balance Note',
+    default => 'Invoice',
+};
+$linePrimary = $isTradeEntry
+    ? (string) ($invoiceData['product_name'] ?? '-')
+    : $entryTypeLabel;
+$lineSecondary = trim((string) ($invoiceData['description'] ?? ''));
+if ($lineSecondary === '') {
+    $lineSecondary = $isTradeEntry ? '-' : 'No additional details';
+}
+
 $shopAddress = (string) ($invoiceData['shop_address_full'] ?? '-');
 $merchantAddress = (string) ($invoiceData['personal_address'] ?? $invoiceData['shop_address'] ?? '-');
 
@@ -26,6 +41,7 @@ $pendingBalance = (float) ($invoiceData['current_receivable_balance'] ?? 0);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Invoice - <?= esc($invoiceNumber) ?></title>
+    <title><?= esc($documentTitle) ?> - <?= esc($invoiceNumber) ?></title>
     <style>
         body { font-family: Arial, sans-serif; margin: 24px; color: #212529; background: #f4f6f9; }
         .invoice-card { max-width: 980px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; padding: 26px; }
@@ -81,7 +97,7 @@ $pendingBalance = (float) ($invoiceData['current_receivable_balance'] ?? 0);
                     <p class="brand-sub"><?= esc($shopAddress) ?></p>
                 </td>
                 <td>
-                    <h2 class="invoice-title">Invoice</h2>
+                    <h2 class="invoice-title"><?= esc($documentTitle) ?></h2>
                     <p class="invoice-no">#<?= esc($invoiceNumber) ?></p>
                 </td>
             </tr>
@@ -122,7 +138,7 @@ $pendingBalance = (float) ($invoiceData['current_receivable_balance'] ?? 0);
             <thead>
                 <tr>
                     <th style="width:60px;">#</th>
-                    <th>Description</th>
+                    <th><?= $isTradeEntry ? 'Product / Description' : 'Particulars' ?></th>
                     <th style="width:120px;">Weight</th>
                     <th style="width:100px;">Purity</th>
                     <th class="text-end">Amount (₹)</th>
@@ -132,11 +148,11 @@ $pendingBalance = (float) ($invoiceData['current_receivable_balance'] ?? 0);
                 <tr>
                     <td><?= (int) ($invoiceData['ledger_id'] ?? 0) ?></td>
                     <td>
-                        <strong><?= esc((string) ($invoiceData['product_name'] ?? '-')) ?></strong><br>
-                        <span style="color:#6b7280;"><?= esc((string) ($invoiceData['description'] ?? '-')) ?></span>
+                        <strong><?= esc($linePrimary) ?></strong><br>
+                        <span style="color:#6b7280;"><?= esc($lineSecondary) ?></span>
                     </td>
-                    <td><?= esc($weightText) ?></td>
-                    <td><?= esc((string) ($invoiceData['purity'] ?? '-')) ?></td>
+                    <td><?= $isTradeEntry ? esc($weightText) : '-' ?></td>
+                    <td><?= $isTradeEntry ? esc((string) ($invoiceData['purity'] ?? '-')) : '-' ?></td>
                     <td class="text-end"><?= number_format((float) ($invoiceData['amount'] ?? 0), 2) ?></td>
                 </tr>
             </tbody>
@@ -145,7 +161,7 @@ $pendingBalance = (float) ($invoiceData['current_receivable_balance'] ?? 0);
         <div class="totals-wrap">
             <table class="totals-table">
                 <tr>
-                    <td>Sub Total</td>
+                    <td><?= $isTradeEntry ? 'Sub Total' : 'Amount' ?></td>
                     <td class="text-end"><?= number_format((float) ($invoiceData['amount'] ?? 0), 2) ?></td>
                 </tr>
                 <tr>

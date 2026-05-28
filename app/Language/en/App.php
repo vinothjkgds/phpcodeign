@@ -27,6 +27,7 @@ return [
         'salePurchase' => 'Sale / Purchase',
         'addEntry' => 'Add Entry',
         'manageEntries' => 'Manage Entries',
+        'shopProfile' => 'Shop Profile',
     ],
     'dashboard' => [
         'welcome' => 'Hi, Welcome back {name}!',

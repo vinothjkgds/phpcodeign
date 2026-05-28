@@ -27,6 +27,7 @@ return [
         'salePurchase' => 'விற்பனை / கொள்முதல்',
         'addEntry' => 'பதிவு சேர்க்க',
         'manageEntries' => 'பதிவுகள் மேலாண்மை',
+        'shopProfile' => 'கடை சுயவிவரம்',
     ],
     'dashboard' => [
         'welcome' => 'வணக்கம், மீண்டும் வரவேற்கிறோம் {name}!',

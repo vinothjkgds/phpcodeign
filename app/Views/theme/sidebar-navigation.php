@@ -88,6 +88,12 @@
       </div>
     </li>
     <li class="nav-item">
+      <a class="nav-link <?= current_controller() === 'shop' ? 'active' : '' ?>" href="<?= base_url('shop') ?>">
+        <i class="mdi mdi-store menu-icon"></i>
+        <span class="menu-title"><?= lang('App.sidebar.shopProfile') ?></span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" href="<?= base_url('logout') ?>">
         <i class="mdi mdi-comment-alert menu-icon"></i>
         <span class="menu-title"><?= lang('App.common.logout') ?></span>

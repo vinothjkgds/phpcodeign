@@ -374,6 +374,55 @@ $(document).ready(function(){
 </script>
 <?php endif; ?>
 
+<?php if(trim(strtolower(current_controller())) == 'shop' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit('#editShop', {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: 'Update',
+                    loadingText: 'Updating...',
+                    rules: {
+                        shop_name: {
+                            required: true
+                        },
+                        email: {
+                            email: true
+                        },
+                        gstin: {
+                            indianGstin: true
+                        },
+                        logo: {
+                            imageExtension: true
+                        },
+                        banner: {
+                            imageExtension: true
+                        }
+                    },
+                    messages: {
+                        shop_name: 'Please enter shop name',
+                        email: 'Please enter a valid email address',
+                        gstin: {
+                            indianGstin: 'Please enter a valid GSTIN'
+                        },
+                        logo: {
+                            imageExtension: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
+                        },
+                        banner: {
+                            imageExtension: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
+                        }
+                    }
+                });
+            }
+        });
+    })(window.jQuery);
+}
+</script>
+<?php endif; ?>
+
 <?php if(trim(strtolower(current_controller())) == 'salepurchase' && trim(strtolower(current_method())) == 'add'): ?>
 <script>
 if (typeof window.jQuery !== 'undefined') {
