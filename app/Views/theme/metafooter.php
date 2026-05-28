@@ -779,6 +779,105 @@ if (typeof window.jQuery !== 'undefined') {
 </script>
 <?php endif; ?>
 
+<?php if (trim(strtolower(current_controller())) == 'auth' && trim(strtolower(current_method())) == 'dashboard'): ?>
+<?php if (!empty($monthlyTrendLabels) || !empty($categoryChartLabels)): ?>
+<script src="<?= base_url() ?>assets/vendors/chart.js/chart.umd.js"></script>
+<script>
+(function(){
+    if (typeof Chart === 'undefined') {
+        return;
+    }
+
+    <?php if (!empty($monthlyTrendLabels)): ?>
+    var monthlyTrendEl = document.getElementById('monthlyTrendChart');
+    if (monthlyTrendEl) {
+        var monthlyTrendCtx = monthlyTrendEl.getContext('2d');
+        new Chart(monthlyTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($monthlyTrendLabels) ?>,
+                datasets: [
+                    {
+                        label: 'Sales (\u20B9)',
+                        data: <?= json_encode($monthlyTrendSales) ?>,
+                        backgroundColor: 'rgba(63,81,181,0.75)',
+                        borderColor: 'rgba(63,81,181,1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Purchases (\u20B9)',
+                        data: <?= json_encode($monthlyTrendPurchases) ?>,
+                        backgroundColor: 'rgba(0,137,123,0.75)',
+                        borderColor: 'rgba(0,137,123,1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(v){
+                                return '\u20B9' + v.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx){
+                                return ctx.dataset.label + ': \u20B9' + parseFloat(ctx.parsed.y).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    <?php endif; ?>
+
+    <?php if (!empty($categoryChartLabels)): ?>
+    var categorySplitEl = document.getElementById('categorySplitChart');
+    if (categorySplitEl) {
+        var categorySplitCtx = categorySplitEl.getContext('2d');
+        new Chart(categorySplitCtx, {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode($categoryChartLabels) ?>,
+                datasets: [
+                    {
+                        data: <?= json_encode($categoryChartData) ?>,
+                        backgroundColor: ['#FFD700', '#C0C0C0', '#cd7f32', '#3f51b5', '#00897b', '#e53935', '#8e24aa']
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx){
+                                var v = ctx.parsed;
+                                return ctx.label + ': \u20B9' + parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    <?php endif; ?>
+}());
+</script>
+<?php endif; ?>
+<?php endif; ?>
+
 <?php if(trim(strtolower(current_controller())) == 'employee' && trim(strtolower(current_method())) == 'index'): ?>
 <script>
 var employeeTable;

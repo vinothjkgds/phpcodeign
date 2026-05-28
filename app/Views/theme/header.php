@@ -1,3 +1,21 @@
+<?php
+$authName = (string) (session()->get('auth_name') ?? 'User');
+$authProfileImage = trim((string) (session()->get('auth_profile_image') ?? ''));
+$profileInitial = strtoupper(function_exists('mb_substr') ? mb_substr($authName, 0, 1) : substr($authName, 0, 1));
+if ($profileInitial === '') {
+    $profileInitial = 'U';
+}
+
+$profileImageUrl = '';
+if ($authProfileImage !== '') {
+    if (preg_match('/^https?:\/\//i', $authProfileImage)) {
+        $profileImageUrl = $authProfileImage;
+    } else {
+        $profileImageUrl = base_url(ltrim($authProfileImage, '/'));
+    }
+}
+?>
+
 <nav class="navbar col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
     <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-center">
         <a class="navbar-brand brand-logo" href="<?= base_url() ?>index.html"><img src="<?= base_url() ?>assets/images/logo.svg" alt="logo" /></a>
@@ -26,7 +44,7 @@
                 <p class="mb-0 fw-normal float-start dropdown-header">Messages</p>
                 <a class="dropdown-item preview-item">
                     <div class="preview-thumbnail">
-                        <img src="https://placehold.co/36x36" alt="image" class="profile-pic">
+                        <img src="<?= base_url() ?>assets/images/placeholder-36x36.svg" alt="image" class="profile-pic">
                     </div>
                     <div class="preview-item-content flex-grow">
                         <h6 class="preview-subject ellipsis fw-normal">David Grey
@@ -38,7 +56,7 @@
                 </a>
                 <a class="dropdown-item preview-item">
                     <div class="preview-thumbnail">
-                        <img src="https://placehold.co/36x36" alt="image" class="profile-pic">
+                        <img src="<?= base_url() ?>assets/images/placeholder-36x36.svg" alt="image" class="profile-pic">
                     </div>
                     <div class="preview-item-content flex-grow">
                         <h6 class="preview-subject ellipsis fw-normal">Tim Cook
@@ -50,7 +68,7 @@
                 </a>
                 <a class="dropdown-item preview-item">
                     <div class="preview-thumbnail">
-                        <img src="https://placehold.co/36x36" alt="image" class="profile-pic">
+                        <img src="<?= base_url() ?>assets/images/placeholder-36x36.svg" alt="image" class="profile-pic">
                     </div>
                     <div class="preview-item-content flex-grow">
                         <h6 class="preview-subject ellipsis fw-normal"> Johnson
@@ -113,7 +131,11 @@
             </li>
             <li class="nav-item nav-profile dropdown me-0 me-sm-2">
                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" id="profileDropdown">
-                <img src="https://placehold.co/36x36" alt="profile" />
+                <?php if ($profileImageUrl !== ''): ?>
+                <img src="<?= esc($profileImageUrl, 'attr') ?>" alt="profile" />
+                <?php else: ?>
+                <span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#4B49AC;color:#fff;font-weight:600;font-size:14px;line-height:1;"><?= esc($profileInitial) ?></span>
+                <?php endif; ?>
                 <span class="nav-profile-name"><?= session()->get('auth_name'); ?></span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="profileDropdown">

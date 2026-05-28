@@ -6,7 +6,7 @@
         <span class="menu-title"><?= lang('App.common.dashboard') ?></span>
       </a>
     </li>
-    <li class="nav-item">
+    <!-- <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_cms" aria-expanded="false" aria-controls="auth">
         <i class="mdi mdi-comment-alert menu-icon"></i>
         <span class="menu-title"><?= lang('App.sidebar.cms') ?></span>
@@ -18,7 +18,7 @@
           <li class="nav-item"> <a class="nav-link" href="<?= base_url('cms/myTickets') ?>"> <?= lang('App.sidebar.myTickets') ?> </a></li>
         </ul>
       </div>
-    </li>
+    </li> -->
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_merchant" aria-expanded="<?= current_controller() === 'merchant' ? 'true' : 'false' ?>" aria-controls="nav_merchant">
         <i class="mdi mdi-account-multiple menu-icon"></i>
