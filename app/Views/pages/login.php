@@ -75,9 +75,7 @@
                   <button type="submit" id="submitBtn" class="btn btn-primary btn-lg fw-medium auth-form-btn">LOGIN</button>
                 </div>
 
-                <div class="text-center mt-4 fw-light">
-                  Don't have an account? <a href="<?= base_url('cms/register') ?>" class="text-primary">Create</a>
-                </div>
+                
               </form>
             </div>
           </div>
