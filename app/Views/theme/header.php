@@ -35,7 +35,7 @@ if ($authProfileImage !== '') {
             </li>
         </ul>
         <ul class="navbar-nav navbar-nav-right">
-            <li class="nav-item dropdown me-1">
+            <!-- <li class="nav-item dropdown me-1">
                 <a class="nav-link count-indicator dropdown-toggle d-flex justify-content-center align-items-center"
                 id="messageDropdown" href="#" data-bs-toggle="dropdown">
                 <i class="mdi mdi-email mx-0"></i>
@@ -128,7 +128,7 @@ if ($authProfileImage !== '') {
                     </div>
                 </a>
                 </div>
-            </li>
+            </li> -->
             <li class="nav-item nav-profile dropdown me-0 me-sm-2">
                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" id="profileDropdown">
                 <?php if ($profileImageUrl !== ''): ?>
