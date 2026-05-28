@@ -104,6 +104,8 @@ class SalePurchaseModel extends Model
                 }
             }
 
+            $invoiceAction = '<a href="' . site_url('salepurchase/invoice/' . (int) $row->ledger_id) . '" class="btn btn-sm btn-info" target="_blank" title="Print/Download Invoice"><i class="mdi mdi-printer"></i></a>';
+
             $data[] = [
                 's_no' => (int) $row->ledger_id,
                 'entry_date' => !empty($row->entry_date) ? date('Y-m-d H:i', strtotime($row->entry_date)) : '-',
@@ -117,6 +119,7 @@ class SalePurchaseModel extends Model
                 'current_receivable_balance' => number_format((float) ($row->current_receivable_balance ?? 0), 2),
                 'txn_ref' => esc($row->txn_ref ?? '-'),
                 'description' => esc($row->description ?? '-'),
+                'action' => $invoiceAction,
             ];
         }
 
@@ -233,5 +236,32 @@ class SalePurchaseModel extends Model
             ->where('reference_code', $referenceCode)
             ->get()
             ->getRow();
+    }
+
+    public function getInvoiceByLedgerId(int $shopId, int $ledgerId): ?array
+    {
+        $builder = $this->db->table($this->table . ' l');
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, l.payable_delta,
+            m.merchant_name, m.phone AS merchant_phone, m.email AS merchant_email, m.gstin AS merchant_gstin, m.personal_address, m.shop_address,
+            p.product_name,
+            s.shop_name, s.owner_name, s.mobile_no AS shop_mobile_no, s.email AS shop_email, s.address AS shop_address_full, s.gstin AS shop_gstin,
+            (
+                SELECT COALESCE(SUM(ml.receivable_delta), 0)
+                FROM merchant_ledger ml
+                WHERE ml.shop_id = l.shop_id
+                  AND ml.merchant_id = l.merchant_id
+                  AND (
+                      ml.entry_date < l.entry_date
+                      OR (ml.entry_date = l.entry_date AND ml.ledger_id <= l.ledger_id)
+                  )
+            ) AS current_receivable_balance");
+        $builder->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
+        $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->join('shops s', 's.shop_id = l.shop_id', 'inner');
+        $builder->where('l.shop_id', $shopId);
+        $builder->where('l.ledger_id', $ledgerId);
+
+        $row = $builder->get()->getRowArray();
+        return $row ?: null;
     }
 }

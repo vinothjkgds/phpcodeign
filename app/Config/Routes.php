@@ -18,6 +18,8 @@ $routes->get('cms/(:any)', 'Cms::$1');
 //Merchant
 $routes->group('merchant', ['filter' => 'auth'], function($routes) {
     $routes->get('view/(:segment)', 'Merchant::view/$1');       // /merchant/view/{reference_code}
+    $routes->get('generate-statement/(:segment)', 'Merchant::generateMonthlyStatement/$1');
+    $routes->get('download-statement/(:segment)/(:segment)', 'Merchant::downloadMonthlyStatement/$1/$2');
     $routes->get('(:any)', 'Merchant::$1');                      // dynamic method
     $routes->get('', 'Merchant::index');                         // /merchant
     $routes->post('add', 'Merchant::add');                       // /merchant/add
@@ -53,6 +55,8 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
 $routes->group('salepurchase', ['filter' => 'auth'], function($routes) {
     $routes->get('', 'Salepurchase::index');
     $routes->get('add', 'Salepurchase::add');
+    $routes->get('invoice/(:num)', 'Salepurchase::invoice/$1');
+    $routes->get('invoice/download/(:num)', 'Salepurchase::downloadInvoice/$1');
     $routes->get('export/csv', 'Salepurchase::exportCsv');
     $routes->get('export/excel', 'Salepurchase::exportExcel');
     $routes->post('import/csv', 'Salepurchase::importCsv');

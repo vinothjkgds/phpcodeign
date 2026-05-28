@@ -5,8 +5,10 @@
 
 $merchant = $merchantInfo ?? null;
 $transactionRows = $transactions ?? [];
+$statementRows = $statementFiles ?? [];
 $receivable = (float) ($receivableAmount ?? 0);
 $payable = (float) ($payableAmount ?? 0);
+$selectedMonth = (string) ($_GET['month'] ?? date('Y-m'));
 
 $logoPath = null;
 if ($merchant) {
@@ -55,6 +57,53 @@ if ($merchant) {
 </div>
 
 <div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                    <h4 class="card-title mb-2 mb-md-0">Monthly Statements</h4>
+                    <?php if ($merchant): ?>
+                        <form action="<?= site_url('merchant/generate-statement/' . $merchant->reference_code) ?>" method="get" class="d-flex align-items-center">
+                            <input type="month" name="month" value="<?= esc($selectedMonth) ?>" class="form-control mr-2" required>
+                            <button type="submit" class="btn btn-primary">Generate Statement</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Generated At</th>
+                                <th>File Size</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($statementRows)): ?>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No monthly statements generated yet.</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($statementRows as $statement): ?>
+                                    <tr>
+                                        <td><?= esc((string) ($statement['month_label'] ?? '-')) ?></td>
+                                        <td><?= esc((string) ($statement['generated_at'] ?? '-')) ?></td>
+                                        <td><?= esc((string) ($statement['file_size'] ?? '-')) ?></td>
+                                        <td>
+                                            <a href="<?= esc((string) ($statement['download_url'] ?? '#')) ?>" class="btn btn-sm btn-info">Download</a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="col-12">
         <div class="card">
             <div class="card-body">

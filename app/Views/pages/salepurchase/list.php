@@ -77,6 +77,7 @@
                         <th>Pending Balance</th>
                         <th>Ref No</th>
                         <th>Description</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody></tbody>

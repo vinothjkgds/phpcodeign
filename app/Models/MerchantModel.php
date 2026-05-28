@@ -249,4 +249,32 @@ class MerchantModel extends Model
 
         return (float) ($row['net_balance'] ?? 0);
     }
+
+    public function getMerchantNetBalanceBeforeDate(int $shopId, int $merchantId, string $beforeDateTime): float
+    {
+        $row = $this->db->table('merchant_ledger')
+            ->select('COALESCE(SUM(receivable_delta - payable_delta), 0) AS net_balance', false)
+            ->where('shop_id', $shopId)
+            ->where('merchant_id', $merchantId)
+            ->where('entry_date <', $beforeDateTime)
+            ->get()
+            ->getRowArray();
+
+        return (float) ($row['net_balance'] ?? 0);
+    }
+
+    public function getMerchantTransactionsByDateRange(int $shopId, int $merchantId, string $fromDateTime, string $toDateTime): array
+    {
+        $builder = $this->db->table('merchant_ledger l');
+        $builder->select('l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, l.payable_delta, p.product_name');
+        $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->where('l.shop_id', $shopId);
+        $builder->where('l.merchant_id', $merchantId);
+        $builder->where('l.entry_date >=', $fromDateTime);
+        $builder->where('l.entry_date <=', $toDateTime);
+        $builder->orderBy('l.entry_date', 'ASC');
+        $builder->orderBy('l.ledger_id', 'ASC');
+
+        return $builder->get()->getResultArray();
+    }
 }

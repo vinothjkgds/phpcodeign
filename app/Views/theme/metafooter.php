@@ -628,11 +628,12 @@ $(document).ready(function(){
             { data: 'receivable_delta' },
             { data: 'current_receivable_balance' },
             { data: 'txn_ref' },
-            { data: 'description' }
+            { data: 'description' },
+            { data: 'action' }
         ],
         order: [[0, 'desc']],
         columnDefs: [
-            { orderable: false, targets: [11] },
+            { orderable: false, targets: [11, 12] },
             { targets: [2], render: function(data) { return data; } }
         ]
     });

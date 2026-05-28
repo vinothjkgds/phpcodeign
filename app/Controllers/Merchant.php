@@ -111,6 +111,7 @@ class Merchant extends BaseController
 
             $transactions = $this->merchantModel->getMerchantTransactionRows($shopId, (int) $merchantInfo->merchant_id);
             $netBalance = $this->merchantModel->getMerchantNetBalance($shopId, (int) $merchantInfo->merchant_id);
+            $statementFiles = $this->getMerchantStatementFiles($shopId, (int) $merchantInfo->merchant_id, (string) $merchantInfo->reference_code);
 
             return view('index', [
                 'body_content' => 'merchant/view',
@@ -118,7 +119,154 @@ class Merchant extends BaseController
                 'transactions' => $transactions,
                 'receivableAmount' => $netBalance > 0 ? $netBalance : 0,
                 'payableAmount' => $netBalance < 0 ? abs($netBalance) : 0,
+                'statementFiles' => $statementFiles,
             ]);
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('merchant'))->with('error', $e->getMessage());
+        }
+    }
+
+    public function generateMonthlyStatement($merchantCode)
+    {
+        try {
+            $shopId = $this->getCurrentShopId();
+            if ($shopId === null) {
+                return redirect()->to(site_url('merchant'))->with('error', 'Unable to identify current shop.');
+            }
+
+            $merchantInfo = $this->merchantModel->getMerchantByRefCode((string) $merchantCode, $shopId);
+            if (!$merchantInfo) {
+                return redirect()->to(site_url('merchant'))->with('error', 'Merchant not found.');
+            }
+
+            $month = (string) ($this->request->getGet('month') ?? date('Y-m'));
+            if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+                return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('error', 'Invalid month format. Use YYYY-MM.');
+            }
+
+            $monthStart = new \DateTimeImmutable($month . '-01 00:00:00');
+            $monthEnd = $monthStart->modify('last day of this month')->setTime(23, 59, 59);
+            $startDateTime = $monthStart->format('Y-m-d H:i:s');
+            $endDateTime = $monthEnd->format('Y-m-d H:i:s');
+
+            $rows = $this->merchantModel->getMerchantTransactionsByDateRange(
+                $shopId,
+                (int) $merchantInfo->merchant_id,
+                $startDateTime,
+                $endDateTime
+            );
+
+            $openingBalance = $this->merchantModel->getMerchantNetBalanceBeforeDate(
+                $shopId,
+                (int) $merchantInfo->merchant_id,
+                $startDateTime
+            );
+
+            $statementDir = $this->getMerchantStatementDirectory($shopId, (int) $merchantInfo->merchant_id);
+            if (!is_dir($statementDir) && !mkdir($statementDir, 0755, true) && !is_dir($statementDir)) {
+                return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('error', 'Unable to create statement directory.');
+            }
+
+            $fileName = 'statement-' . $month . '.csv';
+            $filePath = $statementDir . DIRECTORY_SEPARATOR . $fileName;
+
+            $fileHandle = fopen($filePath, 'w');
+            if ($fileHandle === false) {
+                return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('error', 'Unable to create statement file.');
+            }
+
+            fputcsv($fileHandle, ['Merchant Monthly Statement']);
+            fputcsv($fileHandle, ['Month', $month]);
+            fputcsv($fileHandle, ['Merchant', (string) ($merchantInfo->merchant_name ?? '')]);
+            fputcsv($fileHandle, ['Phone', (string) ($merchantInfo->phone ?? '')]);
+            fputcsv($fileHandle, ['Email', (string) ($merchantInfo->email ?? '')]);
+            fputcsv($fileHandle, ['Generated At', date('Y-m-d H:i:s')]);
+            fputcsv($fileHandle, []);
+            fputcsv($fileHandle, ['Opening Net Balance', number_format($openingBalance, 2, '.', '')]);
+            fputcsv($fileHandle, []);
+            fputcsv($fileHandle, [
+                'S.No',
+                'Date',
+                'Type',
+                'Reference',
+                'Product',
+                'Weight',
+                'Purity',
+                'Amount',
+                'Receivable Delta',
+                'Payable Delta',
+                'Running Net Balance',
+                'Description',
+            ]);
+
+            $runningNetBalance = $openingBalance;
+            $serialNumber = 1;
+            foreach ($rows as $row) {
+                $runningNetBalance += (float) ($row['receivable_delta'] ?? 0) - (float) ($row['payable_delta'] ?? 0);
+
+                $weightText = '';
+                if (!empty($row['weight'])) {
+                    $weightText = rtrim(rtrim(number_format((float) $row['weight'], 3, '.', ''), '0'), '.');
+                    if (!empty($row['weight_unit'])) {
+                        $weightText .= ' ' . (string) $row['weight_unit'];
+                    }
+                }
+
+                fputcsv($fileHandle, [
+                    $serialNumber,
+                    !empty($row['entry_date']) ? date('Y-m-d H:i', strtotime((string) $row['entry_date'])) : '',
+                    (string) ($row['entry_type'] ?? ''),
+                    (string) ($row['txn_ref'] ?? ''),
+                    (string) ($row['product_name'] ?? ''),
+                    $weightText,
+                    (string) ($row['purity'] ?? ''),
+                    number_format((float) ($row['amount'] ?? 0), 2, '.', ''),
+                    number_format((float) ($row['receivable_delta'] ?? 0), 2, '.', ''),
+                    number_format((float) ($row['payable_delta'] ?? 0), 2, '.', ''),
+                    number_format($runningNetBalance, 2, '.', ''),
+                    (string) ($row['description'] ?? ''),
+                ]);
+
+                $serialNumber++;
+            }
+
+            fputcsv($fileHandle, []);
+            fputcsv($fileHandle, ['Closing Net Balance', number_format($runningNetBalance, 2, '.', '')]);
+            fclose($fileHandle);
+
+            return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('success', 'Monthly statement generated successfully for ' . $month . '.');
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('merchant'))->with('error', $e->getMessage());
+        }
+    }
+
+    public function downloadMonthlyStatement($merchantCode, $fileName)
+    {
+        try {
+            $shopId = $this->getCurrentShopId();
+            if ($shopId === null) {
+                return redirect()->to(site_url('merchant'))->with('error', 'Unable to identify current shop.');
+            }
+
+            $merchantInfo = $this->merchantModel->getMerchantByRefCode((string) $merchantCode, $shopId);
+            if (!$merchantInfo) {
+                return redirect()->to(site_url('merchant'))->with('error', 'Merchant not found.');
+            }
+
+            $safeFileName = basename((string) $fileName);
+            if (!preg_match('/^statement-\d{4}-(0[1-9]|1[0-2])\.csv$/', $safeFileName)) {
+                return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('error', 'Invalid statement file.');
+            }
+
+            $statementDir = $this->getMerchantStatementDirectory($shopId, (int) $merchantInfo->merchant_id);
+            $filePath = $statementDir . DIRECTORY_SEPARATOR . $safeFileName;
+
+            if (!is_file($filePath)) {
+                return redirect()->to(site_url('merchant/view/' . $merchantInfo->reference_code))->with('error', 'Statement file not found.');
+            }
+
+            $downloadName = 'merchant-statement-' . preg_replace('/[^a-z0-9\-]+/i', '-', strtolower((string) $merchantInfo->merchant_name)) . '-' . str_replace('statement-', '', $safeFileName);
+            return $this->response->download($filePath, null)->setFileName($downloadName);
         } catch (\Throwable $e) {
             return redirect()->to(site_url('merchant'))->with('error', $e->getMessage());
         }
@@ -422,5 +570,47 @@ class Merchant extends BaseController
         if (is_file($legacyPath)) {
             @unlink($legacyPath);
         }
+    }
+
+    private function getMerchantStatementDirectory(int $shopId, int $merchantId): string
+    {
+        return rtrim(WRITEPATH, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR . 'uploads'
+            . DIRECTORY_SEPARATOR . 'merchant_statements'
+            . DIRECTORY_SEPARATOR . 'shop_' . $shopId
+            . DIRECTORY_SEPARATOR . 'merchant_' . $merchantId;
+    }
+
+    private function getMerchantStatementFiles(int $shopId, int $merchantId, string $merchantCode): array
+    {
+        $statementDir = $this->getMerchantStatementDirectory($shopId, $merchantId);
+        if (!is_dir($statementDir)) {
+            return [];
+        }
+
+        $files = glob($statementDir . DIRECTORY_SEPARATOR . 'statement-*.csv') ?: [];
+        rsort($files);
+
+        $items = [];
+        foreach ($files as $path) {
+            $name = basename($path);
+            if (!preg_match('/^statement-(\d{4}-(0[1-9]|1[0-2]))\.csv$/', $name, $matches)) {
+                continue;
+            }
+
+            $monthValue = $matches[1];
+            $monthDate = \DateTimeImmutable::createFromFormat('Y-m', $monthValue);
+
+            $items[] = [
+                'file_name' => $name,
+                'month_value' => $monthValue,
+                'month_label' => $monthDate ? $monthDate->format('F Y') : $monthValue,
+                'generated_at' => filemtime($path) ? date('Y-m-d H:i', (int) filemtime($path)) : '-',
+                'file_size' => number_format((float) (filesize($path) / 1024), 2) . ' KB',
+                'download_url' => site_url('merchant/download-statement/' . $merchantCode . '/' . rawurlencode($name)),
+            ];
+        }
+
+        return $items;
     }
 }

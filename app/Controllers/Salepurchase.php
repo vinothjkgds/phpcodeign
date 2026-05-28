@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\SalePurchaseModel;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class Salepurchase extends BaseController
 {
@@ -196,6 +198,62 @@ class Salepurchase extends BaseController
 
         $response = $this->salePurchaseModel->getSalePurchaseListDT($this->request->getPost(), $shopId);
         return $this->response->setJSON($response);
+    }
+
+    public function invoice($ledgerId)
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+        }
+
+        $invoice = $this->salePurchaseModel->getInvoiceByLedgerId($shopId, (int) $ledgerId);
+        if (!$invoice) {
+            return redirect()->to(site_url('salepurchase'))->with('error', 'Invoice not found.');
+        }
+
+        return view('pages/salepurchase/invoice', [
+            'invoice' => $invoice,
+            'downloadMode' => false,
+        ]);
+    }
+
+    public function downloadInvoice($ledgerId)
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+        }
+
+        $invoice = $this->salePurchaseModel->getInvoiceByLedgerId($shopId, (int) $ledgerId);
+        if (!$invoice) {
+            return redirect()->to(site_url('salepurchase'))->with('error', 'Invoice not found.');
+        }
+
+        $html = view('pages/salepurchase/invoice', [
+            'invoice' => $invoice,
+            'downloadMode' => true,
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $pdfContent = $dompdf->output();
+
+        $refNo = trim((string) ($invoice['txn_ref'] ?? ''));
+        $fileSuffix = $refNo !== '' ? preg_replace('/[^a-z0-9\-]+/i', '-', strtolower($refNo)) : 'ledger-' . (int) $invoice['ledger_id'];
+        $fileName = 'invoice-' . trim((string) $fileSuffix, '-') . '.pdf';
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+            ->setBody($pdfContent);
     }
 
     public function exportCsv()
