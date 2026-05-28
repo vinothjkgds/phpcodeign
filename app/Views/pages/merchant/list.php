@@ -34,7 +34,8 @@
                                 <th>Logo</th>
                                 <th>Phone</th>
                                 <th>Email</th>
-                                <th>Commission %</th>
+                                <th>Receivable</th>
+                                <th>Payable</th>
                                 <th>Status</th>
                                 <th>Created</th>
                                 <th>Action</th>

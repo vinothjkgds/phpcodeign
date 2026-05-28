@@ -46,3 +46,11 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
     $routes->post('getProductListJson', 'Product::getProductListJson');
     $routes->post('delete/(:segment)', 'Product::delete/$1');
 });
+
+//Sale / Purchase
+$routes->group('salepurchase', ['filter' => 'auth'], function($routes) {
+    $routes->get('', 'Salepurchase::index');
+    $routes->get('add', 'Salepurchase::add');
+    $routes->post('save', 'Salepurchase::save');
+    $routes->post('getSalePurchaseListJson', 'Salepurchase::getSalePurchaseListJson');
+});

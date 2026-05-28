@@ -169,12 +169,6 @@ if (typeof window.jQuery !== 'undefined') {
                         },
                         profile_logo: {
                             imageExtension: true
-                        },
-                        commission_percent: {
-                            required: true,
-                            number: true,
-                            min: 0,
-                            max: 100
                         }
                     },
                     messages: {
@@ -199,8 +193,7 @@ if (typeof window.jQuery !== 'undefined') {
                         },
                         profile_logo: {
                             imageExtension: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
-                        },
-                        commission_percent: 'Please enter commission between 0 and 100'
+                        }
                     }
                 });
             }
@@ -265,14 +258,15 @@ $(document).ready(function(){
             { data: "logo" },
             { data: "phone" },
             { data: "email" },
-            { data: "commission_percent" },
+            { data: "receivable_amount" },
+            { data: "payable_amount" },
             { data: "is_active" },
             { data: "created_at" },
             { data: "action" }
         ],
-        order: [[7,"desc"]],
+        order: [[8,"desc"]],
         columnDefs: [
-            { orderable: false, targets: [2, 8] } // Disable sorting on logo and action columns
+            { orderable: false, targets: [2, 9] } // Disable sorting on logo and action columns
         ]
     });
 
@@ -376,6 +370,147 @@ $(document).ready(function(){
                 }
             });
         }
+    });
+});
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'salepurchase' && trim(strtolower(current_method())) == 'add'): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        function toggleTradeFieldsByEntryType() {
+            var type = $('#entry_type').val();
+            var isTradeType = type === 'sale' || type === 'purchase';
+            var isOpeningType = type === 'opening';
+
+            $('#productGroup, #weightGroup, #weightUnitGroup, #purityGroup').toggle(isTradeType);
+            $('#weightRequiredMark, #weightUnitRequiredMark').toggle(isTradeType);
+            $('#openingBalanceTypeGroup').toggle(isOpeningType);
+            $('#openingBalanceRequiredMark').toggle(isOpeningType);
+
+            if (isOpeningType) {
+                $('#opening_balance_type').prop('required', true);
+            } else {
+                $('#opening_balance_type').prop('required', false).val('');
+            }
+
+            if (isTradeType) {
+                $('#weight').prop('required', true);
+                $('#weight_unit').prop('required', true);
+                return;
+            }
+
+            $('#weight').prop('required', false).val('');
+            $('#weight_unit').prop('required', false).val('');
+            $('#product_id').val('');
+            $('#purity').val('');
+        }
+
+        $(document).ready(function(){
+            if (window.AppFormValidation) {
+                window.AppFormValidation.bindAjaxSubmit('#addSalePurchase', {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: 'Submit',
+                    loadingText: 'Submitting...',
+                    rules: {
+                        entry_date: { required: true },
+                        entry_type: { required: true },
+                        merchant_id: { required: true },
+                        opening_balance_type: {
+                            required: {
+                                depends: function() {
+                                    return $('#entry_type').val() === 'opening';
+                                }
+                            }
+                        },
+                        weight: {
+                            required: {
+                                depends: function() {
+                                    var type = $('#entry_type').val();
+                                    return type === 'sale' || type === 'purchase';
+                                }
+                            },
+                            number: true,
+                            min: 0.001
+                        },
+                        weight_unit: {
+                            required: {
+                                depends: function() {
+                                    var type = $('#entry_type').val();
+                                    return type === 'sale' || type === 'purchase';
+                                }
+                            }
+                        },
+                        amount: { required: true, number: true, min: 0.01 }
+                    },
+                    messages: {
+                        entry_date: 'Please select entry date',
+                        entry_type: 'Please select entry type',
+                        merchant_id: 'Please select merchant',
+                        opening_balance_type: 'Please select opening balance type',
+                        weight: 'Please enter valid weight',
+                        weight_unit: 'Please select weight unit',
+                        amount: 'Please enter valid amount'
+                    }
+                });
+            }
+
+            $(document).on('change', '#entry_type', toggleTradeFieldsByEntryType);
+            toggleTradeFieldsByEntryType();
+        });
+    })(window.jQuery);
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'salepurchase' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+var salePurchaseTable;
+$(document).ready(function(){
+    salePurchaseTable = $('#salePurchaseTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('salepurchase/getSalePurchaseListJson') ?>",
+            type: 'POST',
+            data: function(d) {
+                d.filter_entry_type = $('#filter_entry_type').val();
+                d.filter_merchant_id = $('#filter_merchant_id').val();
+                d.filter_from_date = $('#filter_from_date').val();
+                d.filter_to_date = $('#filter_to_date').val();
+            }
+        },
+        columns: [
+            { data: 's_no' },
+            { data: 'entry_date' },
+            { data: 'entry_type' },
+            { data: 'merchant_name' },
+            { data: 'product_name' },
+            { data: 'weight' },
+            { data: 'purity' },
+            { data: 'amount' },
+            { data: 'receivable_delta' },
+            { data: 'current_receivable_balance' },
+            { data: 'txn_ref' },
+            { data: 'description' }
+        ],
+        order: [[0, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [11] }
+        ]
+    });
+
+    $(document).on('click', '#applySalePurchaseFilter', function(){
+        salePurchaseTable.ajax.reload();
+    });
+
+    $(document).on('click', '#resetSalePurchaseFilter', function(){
+        $('#filter_entry_type').val('');
+        $('#filter_merchant_id').val('');
+        $('#filter_from_date').val('');
+        $('#filter_to_date').val('');
+        salePurchaseTable.ajax.reload();
     });
 });
 </script>

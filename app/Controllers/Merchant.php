@@ -42,9 +42,19 @@ class Merchant extends BaseController
      */
     public function getMerchantListJson()
     {
-        $request = service('request');
-        $postData = $request->getPost();
-        $response = $this->merchantModel->getMerchantListDT($postData);
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'draw' => (int) ($this->request->getPost('draw') ?? 0),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'message' => 'Unable to identify current shop.',
+            ]);
+        }
+
+        $postData = $this->request->getPost();
+        $response = $this->merchantModel->getMerchantListDT($postData, $shopId);
         return $this->response->setJSON($response);
     }
 
@@ -67,7 +77,12 @@ class Merchant extends BaseController
     public function edit($merchantCode)
     {
         try {
-            $merchantInfo = $this->merchantModel->getMerchantByRefCode($merchantCode);
+            $shopId = $this->getCurrentShopId();
+            if ($shopId === null) {
+                return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Unable to identify current shop.']);
+            }
+
+            $merchantInfo = $this->merchantModel->getMerchantByRefCode($merchantCode, $shopId);
             if (!$merchantInfo) {
                 return $this->response->setStatusCode(404)->setJSON(['status' => false, 'message' => 'Merchant not found']);
             }
@@ -96,12 +111,17 @@ class Merchant extends BaseController
             return $this->response->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)->setBody('Merchant code required');
         }
 
-        $merchant = $this->merchantModel->getMerchantByRefCode($code);
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Unable to identify current shop.']);
+        }
+
+        $merchant = $this->merchantModel->getMerchantByRefCode($code, $shopId);
         if (!$merchant) {
             return $this->response->setStatusCode(ResponseInterface::HTTP_NOT_FOUND)->setBody('Merchant not found');
         }
 
-        $success = $this->merchantModel->where('reference_code', $code)->delete();
+        $success = $this->merchantModel->where('reference_code', $code)->where('shop_id', $shopId)->delete();
 
         if ($success) {
             $this->removeLogoIfExists($merchant->profile_logo ?? null);
@@ -124,16 +144,21 @@ class Merchant extends BaseController
     public function save($merchantCode = '')
     {
         try {
+            $shopId = $this->getCurrentShopId();
+            if ($shopId === null) {
+                return $this->respondMerchantSave(false, 'Unable to identify current shop.', null, [], 403);
+            }
+
             $validation = \Config\Services::validation();
 
-            $emailValidation = $merchantCode ? 'permit_empty|valid_email' : 'permit_empty|valid_email|is_unique[merchants.email]';
-            $phoneValidation = $merchantCode ? 'required' : 'required|is_unique[merchants.phone]';
+            $emailValidation = 'permit_empty|valid_email';
+            $phoneValidation = 'required';
             $gstinValidation = 'permit_empty|regex_match[/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i]';
             $merchantType = (string) $this->request->getPost('merchant_type');
             $existingMerchant = null;
 
             if ($merchantCode) {
-                $existingMerchant = $this->merchantModel->getMerchantByRefCode($merchantCode);
+                $existingMerchant = $this->merchantModel->getMerchantByRefCode($merchantCode, $shopId);
                 if (!$existingMerchant) {
                     return $this->response->setStatusCode(404)->setJSON(['status' => false, 'message' => 'Merchant not found']);
                 }
@@ -170,15 +195,6 @@ class Merchant extends BaseController
                         'is_unique' => 'This phone number is already in use.'
                     ]
                 ],
-                'commission_percent' => [
-                    'rules' => 'required|numeric|greater_than_equal_to[0]|less_than_equal_to[100]',
-                    'errors' => [
-                        'required' => 'Commission percentage is required.',
-                        'numeric' => 'Commission must be a number.',
-                        'greater_than_equal_to' => 'Commission cannot be negative.',
-                        'less_than_equal_to' => 'Commission cannot exceed 100%.'
-                    ]
-                ],
                 'gstin' => [
                     'rules' => $gstinValidation,
                     'errors' => [
@@ -204,16 +220,29 @@ class Merchant extends BaseController
                 return $this->respondMerchantSave(false, implode(' | ', $errors), null, $errors, 422);
             }
 
+            $merchantId = $existingMerchant ? (int) $existingMerchant->merchant_id : null;
+            $phone = trim((string) $this->request->getPost('phone'));
+            $email = trim((string) $this->request->getPost('email'));
+
+            if ($this->merchantModel->isPhoneExistsForShop($phone, $shopId, $merchantId)) {
+                return $this->respondMerchantSave(false, 'This phone number is already in use.', null, ['phone' => 'This phone number is already in use.'], 422);
+            }
+
+            if ($email !== '' && $this->merchantModel->isEmailExistsForShop($email, $shopId, $merchantId)) {
+                return $this->respondMerchantSave(false, 'This email is already registered.', null, ['email' => 'This email is already registered.'], 422);
+            }
+
             $data = [
+                'shop_id' => $shopId,
                 'merchant_type' => $merchantType,
                 'merchant_name' => $this->request->getPost('merchant_name'),
-                'phone' => trim((string) $this->request->getPost('phone')),
-                'email' => $this->request->getPost('email') ?: null,
+                'phone' => $phone,
+                'email' => $email !== '' ? $email : null,
                 'personal_address' => $this->request->getPost('personal_address') ?: null,
                 'shop_name' => $this->request->getPost('shop_name') ?: null,
                 'shop_address' => $this->request->getPost('shop_address') ?: null,
                 'gstin' => $this->request->getPost('gstin') ?: null,
-                'commission_percent' => $this->request->getPost('commission_percent'),
+                'commission_percent' => 0,
                 'is_active' => $this->request->getPost('is_active') ? true : false
             ];
 
@@ -265,7 +294,7 @@ class Merchant extends BaseController
 
             if ($merchantCode) {
                 // Update existing merchant
-                $this->merchantModel->updateMerchantByCode($merchantCode, $data);
+                $this->merchantModel->updateMerchantByCode($merchantCode, $shopId, $data);
                 return $this->respondMerchantSave(true, 'Merchant updated successfully', site_url('merchant'));
             } else {
                 // Add new merchant
@@ -296,6 +325,27 @@ class Merchant extends BaseController
         }
 
         return redirect()->back()->withInput()->with('error', $message)->with('errors', $errors);
+    }
+
+    private function getCurrentShopId(): ?int
+    {
+        $shopId = session()->get('auth_shop_id');
+        if (!empty($shopId)) {
+            return (int) $shopId;
+        }
+
+        $referenceCode = (string) session()->get('auth_reference');
+        if ($referenceCode === '') {
+            return null;
+        }
+
+        $employee = $this->merchantModel->getUserByRefCode($referenceCode);
+        if (!$employee || empty($employee->shop_id)) {
+            return null;
+        }
+
+        session()->set('auth_shop_id', (int) $employee->shop_id);
+        return (int) $employee->shop_id;
     }
 
     private function storeMerchantLogo(UploadedFile $file, string $logoType): string

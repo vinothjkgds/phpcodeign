@@ -38,9 +38,12 @@ class MerchantModel extends Model
      * @param array $data
      * @return bool
      */
-    public function updateMerchantByCode(string $referenceCode, array $data)
+    public function updateMerchantByCode(string $referenceCode, int $shopId, array $data)
     {
-        return $this->where('reference_code', $referenceCode)->set($data)->update();
+        return $this->where('reference_code', $referenceCode)
+            ->where('shop_id', $shopId)
+            ->set($data)
+            ->update();
     }
 
     /**
@@ -49,12 +52,16 @@ class MerchantModel extends Model
      * @param string $merchantCode
      * @return object|null
      */
-    public function getMerchantByRefCode(string $merchantCode)
+    public function getMerchantByRefCode(string $merchantCode, ?int $shopId = null)
     {
-        return $this->db->table($this->table)
-            ->where('reference_code', $merchantCode)
-            ->get()
-            ->getRow();
+        $builder = $this->db->table($this->table)
+            ->where('reference_code', $merchantCode);
+
+        if ($shopId !== null) {
+            $builder->where('shop_id', $shopId);
+        }
+
+        return $builder->get()->getRow();
     }
 
     /**
@@ -63,10 +70,18 @@ class MerchantModel extends Model
      * @param array $postData
      * @return array
      */
-    public function getMerchantListDT(array $postData)
+    public function getMerchantListDT(array $postData, int $shopId)
     {
         $builder = $this->db->table($this->table . ' m');
-        $builder->select('m.merchant_id, m.merchant_name, m.merchant_type, m.profile_logo, m.shop_logo, m.phone, m.email, m.commission_percent, m.is_active, m.created_at, m.reference_code');
+        $builder->join(
+            '(SELECT shop_id, merchant_id, COALESCE(SUM(receivable_delta), 0) AS net_balance FROM merchant_ledger GROUP BY shop_id, merchant_id) ml',
+            'ml.merchant_id = m.merchant_id AND ml.shop_id = m.shop_id',
+            'left'
+        );
+        $builder->select("m.merchant_id, m.merchant_name, m.merchant_type, m.profile_logo, m.shop_logo, m.phone, m.email, m.is_active, m.created_at, m.reference_code,
+            CASE WHEN COALESCE(ml.net_balance, 0) > 0 THEN COALESCE(ml.net_balance, 0) ELSE 0 END AS receivable_amount,
+            CASE WHEN COALESCE(ml.net_balance, 0) < 0 THEN ABS(COALESCE(ml.net_balance, 0)) ELSE 0 END AS payable_amount");
+        $builder->where('m.shop_id', $shopId);
 
         // --- Search Filter
         if (!empty($postData['search']['value'])) {
@@ -80,7 +95,7 @@ class MerchantModel extends Model
         }
 
         // --- Ordering
-        $columns = ['m.merchant_name', 'm.merchant_type', 'm.merchant_id', 'm.phone', 'm.email', 'm.commission_percent', 'm.is_active', 'm.created_at', 'm.merchant_id'];
+        $columns = ['m.merchant_name', 'm.merchant_type', 'm.merchant_id', 'm.phone', 'm.email', 'receivable_amount', 'payable_amount', 'm.is_active', 'm.created_at', 'm.merchant_id'];
         if (isset($postData['order'])) {
             $colIndex = $postData['order'][0]['column'];
             $builder->orderBy($columns[$colIndex] ?? 'm.merchant_id', $postData['order'][0]['dir']);
@@ -117,7 +132,8 @@ class MerchantModel extends Model
                 'logo' => $logoHtml,
                 'phone' => $row->phone ?? '-',
                 'email' => $row->email ?? '-',
-                'commission_percent' => $row->commission_percent . '%',
+                'receivable_amount' => number_format((float) ($row->receivable_amount ?? 0), 2),
+                'payable_amount' => number_format((float) ($row->payable_amount ?? 0), 2),
                 'is_active' => $statusBadge,
                 'created_at' => date('Y-m-d', strtotime($row->created_at)),
                 'action' => $actionBtns
@@ -125,8 +141,9 @@ class MerchantModel extends Model
         }
 
         // --- Total and Filtered Count
-        $total = $this->countAll();
+        $total = $this->db->table($this->table)->where('shop_id', $shopId)->countAllResults();
         $builderCount = $this->db->table($this->table . ' m');
+        $builderCount->where('m.shop_id', $shopId);
         if (!empty($postData['search']['value'])) {
             $search = $postData['search']['value'];
             $builderCount->groupStart()
@@ -139,7 +156,7 @@ class MerchantModel extends Model
         $filteredCount = $builderCount->countAllResults();
 
         return [
-            'draw' => intval($postData['draw']),
+            'draw' => isset($postData['draw']) ? (int) $postData['draw'] : 0,
             'recordsTotal' => $total,
             'recordsFiltered' => $filteredCount,
             'data' => $data
@@ -151,8 +168,49 @@ class MerchantModel extends Model
      *
      * @return array
      */
-    public function getActiveMerchants()
+    public function getActiveMerchants(?int $shopId = null)
     {
-        return $this->where('is_active', 1)->findAll();
+        $builder = $this->where('is_active', 1);
+
+        if ($shopId !== null) {
+            $builder->where('shop_id', $shopId);
+        }
+
+        return $builder->findAll();
+    }
+
+    public function getUserByRefCode(string $referenceCode)
+    {
+        return $this->db->table('users')
+            ->select('shop_id, reference_code')
+            ->where('reference_code', $referenceCode)
+            ->get()
+            ->getRow();
+    }
+
+    public function isPhoneExistsForShop(string $phone, int $shopId, ?int $excludeMerchantId = null): bool
+    {
+        $builder = $this->db->table($this->table)
+            ->where('shop_id', $shopId)
+            ->where('phone', $phone);
+
+        if ($excludeMerchantId !== null) {
+            $builder->where('merchant_id !=', $excludeMerchantId);
+        }
+
+        return $builder->countAllResults() > 0;
+    }
+
+    public function isEmailExistsForShop(string $email, int $shopId, ?int $excludeMerchantId = null): bool
+    {
+        $builder = $this->db->table($this->table)
+            ->where('shop_id', $shopId)
+            ->where('email', $email);
+
+        if ($excludeMerchantId !== null) {
+            $builder->where('merchant_id !=', $excludeMerchantId);
+        }
+
+        return $builder->countAllResults() > 0;
     }
 }

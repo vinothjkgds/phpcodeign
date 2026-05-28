@@ -71,6 +71,23 @@
       </div>
     </li>
     <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="collapse" href="#nav_salepurchase" aria-expanded="<?= current_controller() === 'salepurchase' ? 'true' : 'false' ?>" aria-controls="nav_salepurchase">
+        <i class="mdi mdi-swap-horizontal menu-icon"></i>
+        <span class="menu-title">Sale / Purchase</span>
+        <i class="menu-arrow"></i>
+      </a>
+      <div class="collapse <?= current_controller() === 'salepurchase' ? 'show' : '' ?>" id="nav_salepurchase">
+        <ul class="nav flex-column sub-menu">
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('salepurchase/add') ?>">Add Entry</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('salepurchase') ?>">Manage Entries</a>
+          </li>
+        </ul>
+      </div>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" href="<?= base_url('logout') ?>">
         <i class="mdi mdi-comment-alert menu-icon"></i>
         <span class="menu-title">Logout</span>

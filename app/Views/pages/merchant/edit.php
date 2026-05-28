@@ -132,18 +132,6 @@
                             </div>
                         </div>
 
-                        <!-- Commission Percentage -->
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="commission_percent">Commission % <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input id="commission_percent" class="form-control" name="commission_percent" type="number" 
-                                           step="0.01" min="0" max="100" value="<?= $merchantInfo->commission_percent ?>" required placeholder="Enter Commission Percentage">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Status -->
                         <div class="col-md-6">
                             <div class="form-group">
