@@ -297,6 +297,90 @@ $(document).ready(function(){
 </script>
 <?php endif; ?>
 
+<?php if(trim(strtolower(current_controller())) == 'product' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
+            var formSelector = isEdit ? '#editProduct' : '#addProduct';
+            var submitText = isEdit ? 'Update' : 'Submit';
+            var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit(formSelector, {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: submitText,
+                    loadingText: loadingText,
+                    rules: {
+                        product_name: {
+                            required: true
+                        },
+                        product_image: {
+                            imageExtension: true
+                        }
+                    },
+                    messages: {
+                        product_name: 'Please enter product name',
+                        product_image: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
+                    }
+                });
+            }
+        });
+    })(window.jQuery);
+} else {
+    console.error('jQuery is not loaded. Check vendor.bundle.base.js path.');
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'product' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+var productTable;
+$(document).ready(function(){
+    productTable = $('#productTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('product/getProductListJson') ?>",
+            type: 'POST'
+        },
+        columns: [
+            { data: 'product_image' },
+            { data: 'product_name' },
+            { data: 'category' },
+            { data: 'purity' },
+            { data: 'is_active' },
+            { data: 'created_at' },
+            { data: 'action' }
+        ],
+        order: [[5, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [0, 6] }
+        ]
+    });
+
+    $(document).on('click', '.deleteProduct', function(){
+        var productCode = $(this).data('id');
+        if (confirm('Are you sure you want to delete this product?')) {
+            $.ajax({
+                url: '<?= site_url("product/delete") ?>/' + productCode,
+                type: 'POST',
+                success: function(response){
+                    alert(response.message);
+                    productTable.ajax.reload(null, false);
+                },
+                error: function(){
+                    alert('Error deleting product.');
+                }
+            });
+        }
+    });
+});
+</script>
+<?php endif; ?>
+
 <!-- Employee Module JS -->
 <?php if(trim(strtolower(current_controller())) == 'employee' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
 <script>

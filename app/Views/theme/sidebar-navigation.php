@@ -54,6 +54,23 @@
       </div>
     </li>
     <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="collapse" href="#nav_product" aria-expanded="<?= current_controller() === 'product' ? 'true' : 'false' ?>" aria-controls="nav_product">
+        <i class="mdi mdi-cube-outline menu-icon"></i>
+        <span class="menu-title">Products</span>
+        <i class="menu-arrow"></i>
+      </a>
+      <div class="collapse <?= current_controller() === 'product' ? 'show' : '' ?>" id="nav_product">
+        <ul class="nav flex-column sub-menu">
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('product/add') ?>">Add Product</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('product') ?>">Manage Product</a>
+          </li>
+        </ul>
+      </div>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" href="<?= base_url('logout') ?>">
         <i class="mdi mdi-comment-alert menu-icon"></i>
         <span class="menu-title">Logout</span>

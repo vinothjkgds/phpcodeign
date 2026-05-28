@@ -35,3 +35,14 @@ $routes->group('employee', ['filter' => 'auth'], function($routes) {
     $routes->post('getEmployeeListJson', 'Employee::getEmployeeListJson');
     $routes->post('delete/(:segment)', 'Employee::delete/$1');
 });
+
+//Product
+$routes->group('product', ['filter' => 'auth'], function($routes) {
+    $routes->get('', 'Product::index');
+    $routes->get('add', 'Product::add');
+    $routes->get('edit/(:segment)', 'Product::edit/$1');
+    $routes->post('save', 'Product::save');
+    $routes->post('save/(:segment)', 'Product::save/$1');
+    $routes->post('getProductListJson', 'Product::getProductListJson');
+    $routes->post('delete/(:segment)', 'Product::delete/$1');
+});
