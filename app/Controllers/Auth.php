@@ -126,9 +126,50 @@ class Auth extends Controller
      */
     public function dashboard()
     {
+        $shopId = (int) (session()->get('auth_shop_id') ?? 0);
+        $totalOwnerPayableToMerchants = 0.0;
+        $totalOwnerReceivableFromMerchants = 0.0;
+        $totalActiveMerchants = 0;
+        $totalActiveEmployees = 0;
+
+        if ($shopId > 0) {
+            $db = db_connect();
+
+            $merchantBuilder = $db->table('merchants');
+            $merchantBuilder->where('shop_id', $shopId);
+            $merchantBuilder->where('is_active', 1);
+            $totalActiveMerchants = (int) $merchantBuilder->countAllResults();
+
+            $employeeBuilder = $db->table('users');
+            $employeeBuilder->where('shop_id', $shopId);
+            $employeeBuilder->where('is_active', 1);
+            $employeeBuilder->whereIn('user_type', ['manager', 'staff']);
+            $totalActiveEmployees = (int) $employeeBuilder->countAllResults();
+
+            $builder = $db->table('merchant_ledger');
+            $builder->select('merchant_id, COALESCE(SUM(receivable_delta), 0) AS net_balance', false);
+            $builder->where('shop_id', $shopId);
+            $builder->groupBy('merchant_id');
+
+            $rows = $builder->get()->getResult();
+            foreach ($rows as $row) {
+                $netBalance = (float) ($row->net_balance ?? 0);
+                if ($netBalance < 0) {
+                    $totalOwnerPayableToMerchants += abs($netBalance);
+                }
+                if ($netBalance > 0) {
+                    $totalOwnerReceivableFromMerchants += $netBalance;
+                }
+            }
+        }
+
         $data = [
             'body_content' => 'dashboard',
             'totalNoOfBusiness' => 0,
+            'totalOwnerPayableToMerchants' => $totalOwnerPayableToMerchants,
+            'totalOwnerReceivableFromMerchants' => $totalOwnerReceivableFromMerchants,
+            'totalActiveMerchants' => $totalActiveMerchants,
+            'totalActiveEmployees' => $totalActiveEmployees,
         ];
 
         return view('index', $data);

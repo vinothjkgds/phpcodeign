@@ -18,11 +18,11 @@
                 <i class="mdi mdi-arrow-top-right"></i>
             </div>
             <div class="text-white">
-                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Sales</p>
+                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Payable</p>
                 <div
                 class="d-flex flex-md-column flex-xl-row flex-wrap align-items-baseline align-items-md-center align-items-xl-baseline">
-                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">$508</h3>
-                <small class="mb-0">This month</small>
+                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">₹<?= number_format((float) ($totalOwnerPayableToMerchants ?? 0), 2) ?></h3>
+                <!-- <small class="mb-0">Current outstanding</small> -->
                 </div>
             </div>
             </div>
@@ -37,11 +37,10 @@
                 <i class="mdi mdi-basket"></i>
             </div>
             <div class="text-white">
-                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Purchases</p>
+                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Receivable</p>
                 <div
                 class="d-flex flex-md-column flex-xl-row flex-wrap align-items-baseline align-items-md-center align-items-xl-baseline">
-                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">$387</h3>
-                <small class="mb-0">This month</small>
+                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">₹<?= number_format((float) ($totalOwnerReceivableFromMerchants ?? 0), 2) ?></h3>
                 </div>
             </div>
             </div>
@@ -56,11 +55,11 @@
                 <i class="mdi mdi-chart-donut-variant"></i>
             </div>
             <div class="text-white">
-                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Orders</p>
+                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Active Merchants</p>
                 <div
                 class="d-flex flex-md-column flex-xl-row flex-wrap align-items-baseline align-items-md-center align-items-xl-baseline">
-                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">$161</h3>
-                <small class="mb-0">This month</small>
+                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1"><?= (int) ($totalActiveMerchants ?? 0) ?></h3>
+                <small class="mb-0">Current</small>
                 </div>
             </div>
             </div>
@@ -75,11 +74,11 @@
                 <i class="mdi mdi-chart-multiline"></i>
             </div>
             <div class="text-white">
-                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Growth</p>
+                <p class="fw-medium mt-md-2 mt-xl-0 text-md-center text-xl-left">Total Active Employees</p>
                 <div
                 class="d-flex flex-md-column flex-xl-row flex-wrap align-items-baseline align-items-md-center align-items-xl-baseline">
-                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1">$231</h3>
-                <small class="mb-0">This month</small>
+                <h3 class="mb-0 mb-md-1 mb-lg-0 me-1"><?= (int) ($totalActiveEmployees ?? 0) ?></h3>
+                <small class="mb-0">Current</small>
                 </div>
             </div>
             </div>
