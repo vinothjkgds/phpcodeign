@@ -121,13 +121,14 @@ CREATE TABLE items (
     category VARCHAR(50) NULL,
     purity VARCHAR(20) NULL,
     hsn_code VARCHAR(20) NULL,
-    unit VARCHAR(20) NOT NULL DEFAULT 'Gram',
+    unit ENUM('Gram','Kilogram','Milligram','Piece','Ounce','Tola','Carat') NOT NULL DEFAULT 'Gram',
     opening_stock DECIMAL(12,3) NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_items_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
 );
+
 
 -- =============================================
 -- MERCHANTS

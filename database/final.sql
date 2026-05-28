@@ -123,3 +123,31 @@ VALUES
 ('individual', 'Lakshmi Retail', '9876543212', 'lakshmi.retail@email.com', '/uploads/merchant/profile/default-profile-2.png', 'No. 102, Main Road, Anna Nagar, Madurai - 625020', NULL, NULL, NULL, NULL, 3.50, TRUE),
 ('shop', 'Sri Jewelry Store', '9876543213', 'srijewelry@email.com', NULL, NULL, 'Sri Jewelry Store - Branch 1', '/uploads/merchant/shop/default-shop-1.png', '567, Bypass Road, Madurai - 625016', '33AAHFH3055M2BC', 2.50, TRUE),
 ('shop', 'Anand Jewelry Hub', '9876543214', 'anand.hub@email.com', NULL, NULL, 'Anand Jewelry Hub - Main', '/uploads/merchant/shop/default-shop-2.png', 'No. 123, Lake Street, Madurai - 625001', '33AAHFH3055M3CD', 4.00, TRUE);
+
+
+-- =============================================
+-- PRODUCTS
+-- =============================================
+CREATE TABLE products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    shop_id INT NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    product_image VARCHAR(500) NULL,
+    category VARCHAR(50) NULL,
+    purity VARCHAR(20) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_products_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
+);
+
+-- =============================================
+-- SAMPLE PRODUCTS DATA
+INSERT INTO products (shop_id, product_name, category, purity, is_active)
+VALUES
+(1, 'Gold Bar 999', 'gold', '999', TRUE),
+(1, 'Gold Coin 999', 'gold', '999', TRUE),
+(1, 'Gold 999', 'gold', '999', TRUE),
+(1, 'Gold Bar 916', 'gold', '916', TRUE),
+(1, 'Gold Coin 916', 'gold', '916', TRUE),
+(1, 'Gold 916', 'gold', '916', TRUE);
