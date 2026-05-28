@@ -114,7 +114,8 @@ class MerchantModel extends Model
         $data = [];
 
         foreach ($result as $row) {
-            $actionBtns = '<a href="' . site_url('merchant/edit/' . $row->reference_code) . '" class="btn btn-sm btn-primary" title="Edit"><i class="mdi mdi-pencil"></i></a>
+            $actionBtns = '<a href="' . site_url('merchant/view/' . $row->reference_code) . '" class="btn btn-sm btn-info" title="View"><i class="mdi mdi-eye"></i></a>
+            <a href="' . site_url('merchant/edit/' . $row->reference_code) . '" class="btn btn-sm btn-primary" title="Edit"><i class="mdi mdi-pencil"></i></a>
             <button type="button" class="btn btn-sm btn-danger deleteMerchant" data-id="' . $row->reference_code . '" title="Delete"><i class="mdi mdi-delete"></i></button>';
 
             $typeLabel = ucfirst($row->merchant_type);
@@ -212,5 +213,40 @@ class MerchantModel extends Model
         }
 
         return $builder->countAllResults() > 0;
+    }
+
+    public function getMerchantTransactionRows(int $shopId, int $merchantId): array
+    {
+        $builder = $this->db->table('merchant_ledger l');
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, p.product_name,
+            (
+                SELECT COALESCE(SUM(ml.receivable_delta), 0)
+                FROM merchant_ledger ml
+                WHERE ml.shop_id = l.shop_id
+                  AND ml.merchant_id = l.merchant_id
+                  AND (
+                      ml.entry_date < l.entry_date
+                      OR (ml.entry_date = l.entry_date AND ml.ledger_id <= l.ledger_id)
+                  )
+            ) AS current_receivable_balance");
+        $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->where('l.shop_id', $shopId);
+        $builder->where('l.merchant_id', $merchantId);
+        $builder->orderBy('l.entry_date', 'DESC');
+        $builder->orderBy('l.ledger_id', 'DESC');
+
+        return $builder->get()->getResultArray();
+    }
+
+    public function getMerchantNetBalance(int $shopId, int $merchantId): float
+    {
+        $row = $this->db->table('merchant_ledger')
+            ->select('COALESCE(SUM(receivable_delta), 0) AS net_balance', false)
+            ->where('shop_id', $shopId)
+            ->where('merchant_id', $merchantId)
+            ->get()
+            ->getRowArray();
+
+        return (float) ($row['net_balance'] ?? 0);
     }
 }

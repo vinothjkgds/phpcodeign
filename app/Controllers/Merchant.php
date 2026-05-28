@@ -96,6 +96,34 @@ class Merchant extends BaseController
         }
     }
 
+    public function view($merchantCode)
+    {
+        try {
+            $shopId = $this->getCurrentShopId();
+            if ($shopId === null) {
+                return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+            }
+
+            $merchantInfo = $this->merchantModel->getMerchantByRefCode($merchantCode, $shopId);
+            if (!$merchantInfo) {
+                return redirect()->to(site_url('merchant'))->with('error', 'Merchant not found.');
+            }
+
+            $transactions = $this->merchantModel->getMerchantTransactionRows($shopId, (int) $merchantInfo->merchant_id);
+            $netBalance = $this->merchantModel->getMerchantNetBalance($shopId, (int) $merchantInfo->merchant_id);
+
+            return view('index', [
+                'body_content' => 'merchant/view',
+                'merchantInfo' => $merchantInfo,
+                'transactions' => $transactions,
+                'receivableAmount' => $netBalance > 0 ? $netBalance : 0,
+                'payableAmount' => $netBalance < 0 ? abs($netBalance) : 0,
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('merchant'))->with('error', $e->getMessage());
+        }
+    }
+
     /**
      * Delete merchant
      *

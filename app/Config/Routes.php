@@ -17,6 +17,7 @@ $routes->get('cms/(:any)', 'Cms::$1');
 
 //Merchant
 $routes->group('merchant', ['filter' => 'auth'], function($routes) {
+    $routes->get('view/(:segment)', 'Merchant::view/$1');       // /merchant/view/{reference_code}
     $routes->get('(:any)', 'Merchant::$1');                      // dynamic method
     $routes->get('', 'Merchant::index');                         // /merchant
     $routes->post('add', 'Merchant::add');                       // /merchant/add
