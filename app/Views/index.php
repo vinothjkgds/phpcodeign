@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= esc(service('request')->getLocale(), 'attr') ?>">
    <head>
       <?php include("theme/metaheader.php") ?>
    </head>

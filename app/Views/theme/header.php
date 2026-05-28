@@ -117,13 +117,23 @@
                 <span class="nav-profile-name"><?= session()->get('auth_name'); ?></span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="profileDropdown">
+                <div class="dropdown-item-text text-muted small"><?= lang('App.common.language') ?></div>
+                <a class="dropdown-item" href="<?= site_url('lang/en') ?>">
+                <i class="mdi mdi-translate text-primary"></i>
+                <?= lang('App.common.english') ?>
+                </a>
+                <a class="dropdown-item" href="<?= site_url('lang/ta') ?>">
+                <i class="mdi mdi-translate text-primary"></i>
+                <?= lang('App.common.tamil') ?>
+                </a>
+                <div class="dropdown-divider"></div>
                 <a class="dropdown-item">
                 <i class="mdi mdi-settings text-primary"></i>
-                Settings
+                <?= lang('App.common.settings') ?>
                 </a>
                 <a class="dropdown-item" href="<?= base_url('logout') ?>">
                 <i class="mdi mdi-logout text-primary"></i>
-                Logout
+                <?= lang('App.common.logout') ?>
                 </a>
                 </div>
             </li>

@@ -11,6 +11,7 @@ $routes->get('/', 'Auth::login');
 $routes->get('/login', 'Auth::login');
 $routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
+$routes->get('lang/(:segment)', 'Auth::setLanguage/$1');
 $routes->get('dashboard', 'Auth::dashboard', ['filter' => 'auth']);
 $routes->get('cms/(:any)', 'Cms::$1');
 

@@ -1,0 +1,38 @@
+<?php
+
+return [
+    'common' => [
+        'dashboard' => 'டாஷ்போர்டு',
+        'logout' => 'வெளியேறு',
+        'settings' => 'அமைப்புகள்',
+        'current' => 'தற்போது',
+        'import' => 'இறக்குமதி',
+        'language' => 'மொழி',
+        'english' => 'English',
+        'tamil' => 'தமிழ்',
+    ],
+    'sidebar' => [
+        'cms' => 'CMS',
+        'addTicket' => 'டிக்கெட் சேர்க்க',
+        'myTickets' => 'என் டிக்கெட்டுகள்',
+        'merchants' => 'வணிகர்கள்',
+        'addMerchant' => 'வணிகரை சேர்க்க',
+        'manageMerchant' => 'வணிகர் மேலாண்மை',
+        'employees' => 'ஊழியர்கள்',
+        'addEmployee' => 'ஊழியரை சேர்க்க',
+        'manageEmployee' => 'ஊழியர் மேலாண்மை',
+        'products' => 'பொருட்கள்',
+        'addProduct' => 'பொருள் சேர்க்க',
+        'manageProduct' => 'பொருள் மேலாண்மை',
+        'salePurchase' => 'விற்பனை / கொள்முதல்',
+        'addEntry' => 'பதிவு சேர்க்க',
+        'manageEntries' => 'பதிவுகள் மேலாண்மை',
+    ],
+    'dashboard' => [
+        'welcome' => 'வணக்கம், மீண்டும் வரவேற்கிறோம் {name}!',
+        'totalPayable' => 'மொத்தம் செலுத்த வேண்டியது',
+        'totalReceivable' => 'மொத்தம் பெற வேண்டியது',
+        'totalActiveMerchants' => 'செயலில் உள்ள வணிகர்கள்',
+        'totalActiveEmployees' => 'செயலில் உள்ள ஊழியர்கள்',
+    ],
+];

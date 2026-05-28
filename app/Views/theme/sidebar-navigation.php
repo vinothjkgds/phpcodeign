@@ -3,35 +3,35 @@
     <li class="nav-item">
       <a class="nav-link" href="<?= base_url('dashboard') ?>">
         <i class="mdi mdi-home menu-icon"></i>
-        <span class="menu-title">Dashboard</span>
+        <span class="menu-title"><?= lang('App.common.dashboard') ?></span>
       </a>
     </li>
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_cms" aria-expanded="false" aria-controls="auth">
         <i class="mdi mdi-comment-alert menu-icon"></i>
-        <span class="menu-title">CMS</span>
+        <span class="menu-title"><?= lang('App.sidebar.cms') ?></span>
         <i class="menu-arrow"></i>
       </a>
       <div class="collapse" id="nav_cms">
         <ul class="nav flex-column sub-menu">
-          <li class="nav-item"> <a class="nav-link" href="<?= base_url('cms/addTicket') ?>"> Add Ticket </a></li>
-          <li class="nav-item"> <a class="nav-link" href="<?= base_url('cms/myTickets') ?>"> My Tickets </a></li>
+          <li class="nav-item"> <a class="nav-link" href="<?= base_url('cms/addTicket') ?>"> <?= lang('App.sidebar.addTicket') ?> </a></li>
+          <li class="nav-item"> <a class="nav-link" href="<?= base_url('cms/myTickets') ?>"> <?= lang('App.sidebar.myTickets') ?> </a></li>
         </ul>
       </div>
     </li>
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_merchant" aria-expanded="<?= current_controller() === 'merchant' ? 'true' : 'false' ?>" aria-controls="nav_merchant">
         <i class="mdi mdi-account-multiple menu-icon"></i>
-        <span class="menu-title">Merchants</span>
+        <span class="menu-title"><?= lang('App.sidebar.merchants') ?></span>
         <i class="menu-arrow"></i>
       </a>
       <div class="collapse <?= current_controller() === 'merchant' ? 'show' : '' ?>" id="nav_merchant">
         <ul class="nav flex-column sub-menu">
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'merchant' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('merchant/add') ?>">Add Merchant</a>
+            <a class="nav-link <?= (current_controller() === 'merchant' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('merchant/add') ?>"><?= lang('App.sidebar.addMerchant') ?></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'merchant' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('merchant') ?>">Manage Merchant</a>
+            <a class="nav-link <?= (current_controller() === 'merchant' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('merchant') ?>"><?= lang('App.sidebar.manageMerchant') ?></a>
           </li>
         </ul>
       </div>
@@ -39,16 +39,16 @@
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_employee" aria-expanded="<?= current_controller() === 'employee' ? 'true' : 'false' ?>" aria-controls="nav_employee">
         <i class="mdi mdi-account-group menu-icon"></i>
-        <span class="menu-title">Employees</span>
+        <span class="menu-title"><?= lang('App.sidebar.employees') ?></span>
         <i class="menu-arrow"></i>
       </a>
       <div class="collapse <?= current_controller() === 'employee' ? 'show' : '' ?>" id="nav_employee">
         <ul class="nav flex-column sub-menu">
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'employee' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('employee/add') ?>">Add Employee</a>
+            <a class="nav-link <?= (current_controller() === 'employee' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('employee/add') ?>"><?= lang('App.sidebar.addEmployee') ?></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'employee' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('employee') ?>">Manage Employee</a>
+            <a class="nav-link <?= (current_controller() === 'employee' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('employee') ?>"><?= lang('App.sidebar.manageEmployee') ?></a>
           </li>
         </ul>
       </div>
@@ -56,16 +56,16 @@
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_product" aria-expanded="<?= current_controller() === 'product' ? 'true' : 'false' ?>" aria-controls="nav_product">
         <i class="mdi mdi-cube-outline menu-icon"></i>
-        <span class="menu-title">Products</span>
+        <span class="menu-title"><?= lang('App.sidebar.products') ?></span>
         <i class="menu-arrow"></i>
       </a>
       <div class="collapse <?= current_controller() === 'product' ? 'show' : '' ?>" id="nav_product">
         <ul class="nav flex-column sub-menu">
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('product/add') ?>">Add Product</a>
+            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('product/add') ?>"><?= lang('App.sidebar.addProduct') ?></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('product') ?>">Manage Product</a>
+            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('product') ?>"><?= lang('App.sidebar.manageProduct') ?></a>
           </li>
         </ul>
       </div>
@@ -73,16 +73,16 @@
     <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_salepurchase" aria-expanded="<?= current_controller() === 'salepurchase' ? 'true' : 'false' ?>" aria-controls="nav_salepurchase">
         <i class="mdi mdi-swap-horizontal menu-icon"></i>
-        <span class="menu-title">Sale / Purchase</span>
+        <span class="menu-title"><?= lang('App.sidebar.salePurchase') ?></span>
         <i class="menu-arrow"></i>
       </a>
       <div class="collapse <?= current_controller() === 'salepurchase' ? 'show' : '' ?>" id="nav_salepurchase">
         <ul class="nav flex-column sub-menu">
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('salepurchase/add') ?>">Add Entry</a>
+            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('salepurchase/add') ?>"><?= lang('App.sidebar.addEntry') ?></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('salepurchase') ?>">Manage Entries</a>
+            <a class="nav-link <?= (current_controller() === 'salepurchase' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('salepurchase') ?>"><?= lang('App.sidebar.manageEntries') ?></a>
           </li>
         </ul>
       </div>
@@ -90,7 +90,7 @@
     <li class="nav-item">
       <a class="nav-link" href="<?= base_url('logout') ?>">
         <i class="mdi mdi-comment-alert menu-icon"></i>
-        <span class="menu-title">Logout</span>
+        <span class="menu-title"><?= lang('App.common.logout') ?></span>
       </a>
     </li>
 

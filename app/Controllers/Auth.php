@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\AuthModel;
-use CodeIgniter\Controller;
 
 /**
  * Class Auth
@@ -17,7 +16,7 @@ use CodeIgniter\Controller;
  * @version 1.0
  */
 
-class Auth extends Controller
+class Auth extends BaseController
 {
     /**
      * Auth model instance.
@@ -117,6 +116,17 @@ class Auth extends Controller
     {
         session()->destroy();
         return redirect()->to('/login');
+    }
+
+    public function setLanguage(string $locale)
+    {
+        $allowedLocales = ['en', 'ta'];
+        $selectedLocale = in_array($locale, $allowedLocales, true) ? $locale : 'en';
+
+        session()->set('app_locale', $selectedLocale);
+        service('request')->setLocale($selectedLocale);
+
+        return redirect()->back();
     }
 
     /**
