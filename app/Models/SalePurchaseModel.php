@@ -84,7 +84,17 @@ class SalePurchaseModel extends Model
         $data = [];
 
         foreach ($result as $row) {
-            $entryTypeLabel = ucwords(str_replace('_', ' ', (string) $row->entry_type));
+            $entryTypeRaw = (string) $row->entry_type;
+            $entryTypeLabel = ucwords(str_replace('_', ' ', $entryTypeRaw));
+            $badgeClass = match ($entryTypeRaw) {
+                'sale'             => 'badge-primary',
+                'purchase'         => 'badge-info',
+                'payment_received' => 'badge-success',
+                'payment_paid'     => 'badge-warning',
+                'opening'          => 'badge-danger',
+                default            => 'badge-dark',
+            };
+            $entryTypeBadge = '<span class="badge ' . $badgeClass . ' badge-pill">' . $entryTypeLabel . '</span>';
             $productName = !empty($row->product_name) ? $row->product_name : '-';
             $weightText = '-';
             if ($row->weight !== null) {
@@ -97,7 +107,7 @@ class SalePurchaseModel extends Model
             $data[] = [
                 's_no' => (int) $row->ledger_id,
                 'entry_date' => !empty($row->entry_date) ? date('Y-m-d H:i', strtotime($row->entry_date)) : '-',
-                'entry_type' => $entryTypeLabel,
+                'entry_type' => $entryTypeBadge,
                 'merchant_name' => esc($row->merchant_name),
                 'product_name' => esc($productName),
                 'weight' => esc($weightText),
@@ -142,6 +152,32 @@ class SalePurchaseModel extends Model
         ];
     }
 
+    public function getSalePurchaseExportRows(array $filters, int $shopId): array
+    {
+        $builder = $this->db->table($this->table . ' l');
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, m.merchant_name, p.product_name,
+            (
+                SELECT COALESCE(SUM(ml.receivable_delta), 0)
+                FROM merchant_ledger ml
+                WHERE ml.shop_id = l.shop_id
+                  AND ml.merchant_id = l.merchant_id
+                  AND (
+                      ml.entry_date < l.entry_date
+                      OR (ml.entry_date = l.entry_date AND ml.ledger_id <= l.ledger_id)
+                  )
+            ) AS current_receivable_balance");
+        $builder->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
+        $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->where('l.shop_id', $shopId);
+
+        $this->applyFilters($builder, $filters);
+
+        $builder->orderBy('l.entry_date', 'DESC');
+        $builder->orderBy('l.ledger_id', 'DESC');
+
+        return $builder->get()->getResultArray();
+    }
+
     private function applyFilters($builder, array $postData): void
     {
         $allowedEntryTypes = ['opening', 'sale', 'purchase', 'payment_received', 'payment_paid'];
@@ -182,7 +218,7 @@ class SalePurchaseModel extends Model
     public function getActiveProducts(int $shopId): array
     {
         return $this->db->table('products')
-            ->select('product_id, product_name, purity')
+            ->select('product_id, product_name')
             ->where('shop_id', $shopId)
             ->where('is_active', 1)
             ->orderBy('product_name', 'ASC')

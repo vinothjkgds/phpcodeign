@@ -51,6 +51,9 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
 $routes->group('salepurchase', ['filter' => 'auth'], function($routes) {
     $routes->get('', 'Salepurchase::index');
     $routes->get('add', 'Salepurchase::add');
+    $routes->get('export/csv', 'Salepurchase::exportCsv');
+    $routes->get('export/excel', 'Salepurchase::exportExcel');
+    $routes->post('import/csv', 'Salepurchase::importCsv');
     $routes->post('save', 'Salepurchase::save');
     $routes->post('getSalePurchaseListJson', 'Salepurchase::getSalePurchaseListJson');
 });

@@ -64,7 +64,7 @@
                                     <option value="">Select Product</option>
                                     <?php foreach (($products ?? []) as $product): ?>
                                         <option value="<?= (int) $product->product_id ?>">
-                                            <?= esc($product->product_name) ?><?= !empty($product->purity) ? ' (' . esc($product->purity) . ')' : '' ?>
+                                            <?= esc($product->product_name) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>

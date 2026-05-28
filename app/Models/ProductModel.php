@@ -39,7 +39,7 @@ class ProductModel extends Model
     public function getProductListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' p');
-        $builder->select('p.product_id, p.product_name, p.product_image, p.category, p.purity, p.is_active, p.created_at');
+        $builder->select('p.product_id, p.product_name, p.product_image, p.category, p.is_active, p.created_at');
         $builder->where('p.shop_id', $shopId);
 
         if (!empty($postData['search']['value'])) {
@@ -47,11 +47,10 @@ class ProductModel extends Model
             $builder->groupStart()
                 ->like('p.product_name', $search)
                 ->orLike('p.category', $search)
-                ->orLike('p.purity', $search)
                 ->groupEnd();
         }
 
-        $columns = ['p.product_image', 'p.product_name', 'p.category', 'p.purity', 'p.is_active', 'p.created_at', 'p.product_id'];
+        $columns = ['p.product_image', 'p.product_name', 'p.category', 'p.is_active', 'p.created_at', 'p.product_id'];
         if (isset($postData['order'][0]['column'], $postData['order'][0]['dir'])) {
             $colIndex = (int) $postData['order'][0]['column'];
             $direction = strtolower((string) $postData['order'][0]['dir']) === 'asc' ? 'ASC' : 'DESC';
@@ -87,7 +86,6 @@ class ProductModel extends Model
                 'product_image' => $productImage,
                 'product_name' => esc($row->product_name),
                 'category' => esc($row->category ?? '-'),
-                'purity' => esc($row->purity ?? '-'),
                 'is_active' => $statusBadge,
                 'created_at' => !empty($row->created_at) ? date('Y-m-d', strtotime($row->created_at)) : '-',
                 'action' => $actionBtns,
@@ -103,7 +101,6 @@ class ProductModel extends Model
             $builderCount->groupStart()
                 ->like('p.product_name', $search)
                 ->orLike('p.category', $search)
-                ->orLike('p.purity', $search)
                 ->groupEnd();
         }
         $filteredCount = $builderCount->countAllResults();

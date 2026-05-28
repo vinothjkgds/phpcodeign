@@ -147,7 +147,6 @@ class Product extends BaseController
                 'shop_id' => $shopId,
                 'product_name' => trim((string) $this->request->getPost('product_name')),
                 'category' => trim((string) ($this->request->getPost('category') ?? '')) ?: null,
-                'purity' => trim((string) ($this->request->getPost('purity') ?? '')) ?: null,
                 'is_active' => $this->request->getPost('is_active') ? true : false,
             ];
 

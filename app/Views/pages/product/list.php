@@ -20,7 +20,6 @@
                                 <th>Image</th>
                                 <th>Product Name</th>
                                 <th>Category</th>
-                                <th>Purity</th>
                                 <th>Status</th>
                                 <th>Created</th>
                                 <th>Action</th>

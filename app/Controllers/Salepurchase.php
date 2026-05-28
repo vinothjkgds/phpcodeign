@@ -198,6 +198,386 @@ class Salepurchase extends BaseController
         return $this->response->setJSON($response);
     }
 
+    public function exportCsv()
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+        }
+
+        $rows = $this->salePurchaseModel->getSalePurchaseExportRows($this->getExportFilters(), $shopId);
+
+        $handle = fopen('php://temp', 'r+');
+        fputcsv($handle, ['S.No', 'Date', 'Type', 'Merchant', 'Product', 'Weight', 'Purity', 'Amount', 'Balance Change', 'Pending Balance', 'Ref No', 'Description']);
+
+        foreach ($rows as $row) {
+            fputcsv($handle, $this->formatExportRow($row));
+        }
+
+        rewind($handle);
+        $csvContent = stream_get_contents($handle);
+        fclose($handle);
+
+        $fileName = 'sale_purchase_' . date('Ymd_His') . '.csv';
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+            ->setBody("\xEF\xBB\xBF" . $csvContent);
+    }
+
+    public function exportExcel()
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+        }
+
+        $rows = $this->salePurchaseModel->getSalePurchaseExportRows($this->getExportFilters(), $shopId);
+
+        $html = '<table border="1"><thead><tr>'
+            . '<th>S.No</th><th>Date</th><th>Type</th><th>Merchant</th><th>Product</th><th>Weight</th><th>Purity</th><th>Amount</th><th>Balance Change</th><th>Pending Balance</th><th>Ref No</th><th>Description</th>'
+            . '</tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $formatted = $this->formatExportRow($row);
+            $html .= '<tr>';
+            foreach ($formatted as $cell) {
+                $html .= '<td>' . esc((string) $cell) . '</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+
+        $fileName = 'sale_purchase_' . date('Ymd_His') . '.xls';
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+            ->setBody("\xEF\xBB\xBF" . $html);
+    }
+
+    public function importCsv()
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
+        }
+
+        $db = db_connect();
+
+        $file = $this->request->getFile('import_file');
+        if (!$file || $file->getError() !== UPLOAD_ERR_OK) {
+            return redirect()->to(site_url('salepurchase'))->with('error', 'Please choose a valid CSV file.');
+        }
+
+        $handle = fopen($file->getTempName(), 'r');
+        if ($handle === false) {
+            return redirect()->to(site_url('salepurchase'))->with('error', 'Unable to read uploaded CSV file.');
+        }
+
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            return redirect()->to(site_url('salepurchase'))->with('error', 'CSV file is empty.');
+        }
+
+        $normalizedHeader = array_map(fn($value) => $this->normalizeHeader((string) $value), $header);
+        $columns = array_flip($normalizedHeader);
+
+        $requiredHeaders = ['date', 'type', 'merchant', 'amount'];
+        foreach ($requiredHeaders as $requiredHeader) {
+            if (!array_key_exists($requiredHeader, $columns)) {
+                fclose($handle);
+                return redirect()->to(site_url('salepurchase'))->with('error', 'Invalid CSV format. Missing required column: ' . ucfirst($requiredHeader));
+            }
+        }
+
+        $merchantMap = [];
+        $merchantRows = $db->table('merchants')
+            ->select('merchant_id, merchant_name')
+            ->where('shop_id', $shopId)
+            ->get()
+            ->getResultArray();
+        foreach ($merchantRows as $merchantRow) {
+            $merchantMap[strtolower(trim((string) $merchantRow['merchant_name']))] = (int) $merchantRow['merchant_id'];
+        }
+
+        $productMap = [];
+        $productRows = $db->table('products')
+            ->select('product_id, product_name')
+            ->where('shop_id', $shopId)
+            ->get()
+            ->getResultArray();
+        foreach ($productRows as $productRow) {
+            $productMap[strtolower(trim((string) $productRow['product_name']))] = (int) $productRow['product_id'];
+        }
+
+        $importedCount = 0;
+        $skippedCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        $lineNumber = 1;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $lineNumber++;
+            if ($this->isCsvRowEmpty($row)) {
+                continue;
+            }
+
+            $dateRaw = $this->getCsvValue($row, $columns, 'date');
+            $typeRaw = $this->getCsvValue($row, $columns, 'type');
+            $merchantRaw = $this->getCsvValue($row, $columns, 'merchant');
+            $productRaw = $this->getCsvValue($row, $columns, 'product');
+            $weightRaw = $this->getCsvValue($row, $columns, 'weight');
+            $purityRaw = $this->getCsvValue($row, $columns, 'purity');
+            $amountRaw = $this->getCsvValue($row, $columns, 'amount');
+            $balanceChangeRaw = $this->getCsvValue($row, $columns, 'balance_change');
+            $refRaw = $this->getCsvValue($row, $columns, 'ref_no');
+            $descriptionRaw = $this->getCsvValue($row, $columns, 'description');
+
+            $entryDateTs = strtotime($dateRaw);
+            if ($entryDateTs === false) {
+                $errorCount++;
+                $errors[] = 'Line ' . $lineNumber . ': invalid date.';
+                continue;
+            }
+            $entryDate = date('Y-m-d H:i:s', $entryDateTs);
+
+            $entryType = strtolower(str_replace(' ', '_', trim($typeRaw)));
+            $allowedEntryTypes = ['opening', 'sale', 'purchase', 'payment_received', 'payment_paid'];
+            if (!in_array($entryType, $allowedEntryTypes, true)) {
+                $errorCount++;
+                $errors[] = 'Line ' . $lineNumber . ': invalid entry type.';
+                continue;
+            }
+
+            $merchantKey = strtolower(trim($merchantRaw));
+            if ($merchantKey === '' || !isset($merchantMap[$merchantKey])) {
+                $errorCount++;
+                $errors[] = 'Line ' . $lineNumber . ': merchant not found.';
+                continue;
+            }
+            $merchantId = $merchantMap[$merchantKey];
+
+            $amount = $this->parseNumber($amountRaw);
+            if ($amount <= 0) {
+                $errorCount++;
+                $errors[] = 'Line ' . $lineNumber . ': invalid amount.';
+                continue;
+            }
+
+            $receivableDelta = 0.0;
+            $balanceChange = $this->parseNumber($balanceChangeRaw);
+            if ($balanceChangeRaw !== '') {
+                $receivableDelta = $balanceChange;
+            } else {
+                if ($entryType === 'opening' || $entryType === 'sale' || $entryType === 'payment_paid') {
+                    $receivableDelta = $amount;
+                }
+                if ($entryType === 'purchase' || $entryType === 'payment_received') {
+                    $receivableDelta = -$amount;
+                }
+            }
+
+            $productId = null;
+            $productName = trim($productRaw);
+            if ($productName !== '' && $productName !== '-') {
+                $productKey = strtolower($productName);
+                if (!isset($productMap[$productKey])) {
+                    $errorCount++;
+                    $errors[] = 'Line ' . $lineNumber . ': product not found.';
+                    continue;
+                }
+                $productId = $productMap[$productKey];
+            }
+
+            [$weight, $weightUnit] = $this->parseWeightAndUnit($weightRaw);
+
+            $txnRef = trim($refRaw);
+            $description = trim($descriptionRaw);
+
+            $duplicateQuery = $db->table('merchant_ledger');
+            $duplicateQuery->where('shop_id', $shopId)
+                ->where('merchant_id', $merchantId)
+                ->where('entry_date', $entryDate)
+                ->where('entry_type', $entryType)
+                ->where('amount', $amount)
+                ->where('receivable_delta', $receivableDelta);
+
+            if ($productId === null) {
+                $duplicateQuery->where('product_id', null);
+            } else {
+                $duplicateQuery->where('product_id', $productId);
+            }
+
+            if ($txnRef === '') {
+                $duplicateQuery->where('txn_ref', null);
+            } else {
+                $duplicateQuery->where('txn_ref', $txnRef);
+            }
+
+            if ($description === '') {
+                $duplicateQuery->where('description', null);
+            } else {
+                $duplicateQuery->where('description', $description);
+            }
+
+            if ($duplicateQuery->countAllResults() > 0) {
+                $skippedCount++;
+                continue;
+            }
+
+            $insertData = [
+                'shop_id' => $shopId,
+                'merchant_id' => $merchantId,
+                'entry_date' => $entryDate,
+                'entry_type' => $entryType,
+                'txn_ref' => $txnRef !== '' ? $txnRef : null,
+                'product_id' => $productId,
+                'description' => $description !== '' ? $description : null,
+                'weight' => $weight,
+                'weight_unit' => $weightUnit,
+                'purity' => trim($purityRaw) !== '' && trim($purityRaw) !== '-' ? trim($purityRaw) : null,
+                'amount' => $amount,
+                'receivable_delta' => $receivableDelta,
+                'payable_delta' => 0,
+            ];
+
+            $this->salePurchaseModel->addEntry($insertData);
+            $importedCount++;
+        }
+
+        fclose($handle);
+
+        $message = 'Import completed. Added: ' . $importedCount . ', Skipped duplicates: ' . $skippedCount . ', Errors: ' . $errorCount . '.';
+        if (!empty($errors)) {
+            $message .= ' ' . implode(' ', array_slice($errors, 0, 5));
+        }
+
+        if ($errorCount > 0) {
+            return redirect()->to(site_url('salepurchase'))->with('error', $message);
+        }
+
+        return redirect()->to(site_url('salepurchase'))->with('success', $message);
+    }
+
+    private function getExportFilters(): array
+    {
+        return [
+            'filter_entry_type' => trim((string) $this->request->getGet('filter_entry_type')),
+            'filter_merchant_id' => (int) ($this->request->getGet('filter_merchant_id') ?? 0),
+            'filter_from_date' => trim((string) $this->request->getGet('filter_from_date')),
+            'filter_to_date' => trim((string) $this->request->getGet('filter_to_date')),
+        ];
+    }
+
+    private function formatExportRow(array $row): array
+    {
+        $weightText = '-';
+        if ($row['weight'] !== null) {
+            $weightText = rtrim(rtrim(number_format((float) $row['weight'], 3, '.', ''), '0'), '.');
+            if (!empty($row['weight_unit'])) {
+                $weightText .= ' ' . ucfirst((string) $row['weight_unit']);
+            }
+        }
+
+        return [
+            (int) ($row['ledger_id'] ?? 0),
+            !empty($row['entry_date']) ? date('Y-m-d H:i', strtotime((string) $row['entry_date'])) : '-',
+            ucwords(str_replace('_', ' ', (string) ($row['entry_type'] ?? ''))),
+            (string) ($row['merchant_name'] ?? '-'),
+            !empty($row['product_name']) ? (string) $row['product_name'] : '-',
+            $weightText,
+            !empty($row['purity']) ? (string) $row['purity'] : '-',
+            number_format((float) ($row['amount'] ?? 0), 2),
+            number_format((float) ($row['receivable_delta'] ?? 0), 2),
+            number_format((float) ($row['current_receivable_balance'] ?? 0), 2),
+            !empty($row['txn_ref']) ? (string) $row['txn_ref'] : '-',
+            !empty($row['description']) ? (string) $row['description'] : '-',
+        ];
+    }
+
+    private function normalizeHeader(string $header): string
+    {
+        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header);
+        $header = strtolower(trim($header));
+        $header = str_replace(['(', ')', '+'], '', $header);
+        $header = preg_replace('/\s+/', ' ', $header ?? '');
+
+        return match ($header) {
+            's.no' => 's_no',
+            'date' => 'date',
+            'type' => 'type',
+            'merchant' => 'merchant',
+            'product' => 'product',
+            'weight' => 'weight',
+            'purity' => 'purity',
+            'amount' => 'amount',
+            'balance change',
+            'receivable' => 'balance_change',
+            'pending balance',
+            'pending receivable' => 'pending_balance',
+            'ref no' => 'ref_no',
+            'description' => 'description',
+            default => str_replace(' ', '_', $header),
+        };
+    }
+
+    private function getCsvValue(array $row, array $columns, string $column): string
+    {
+        if (!isset($columns[$column])) {
+            return '';
+        }
+
+        $index = $columns[$column];
+        return isset($row[$index]) ? trim((string) $row[$index]) : '';
+    }
+
+    private function parseNumber(string $value): float
+    {
+        $normalized = str_replace([',', '₹', '$', ' '], '', trim($value));
+        if ($normalized === '' || $normalized === '-') {
+            return 0.0;
+        }
+
+        return (float) $normalized;
+    }
+
+    private function parseWeightAndUnit(string $weightRaw): array
+    {
+        $value = trim($weightRaw);
+        if ($value === '' || $value === '-') {
+            return [null, null];
+        }
+
+        $parts = preg_split('/\s+/', $value, 2);
+        $weight = isset($parts[0]) ? (float) $parts[0] : null;
+        if (!$weight || $weight <= 0) {
+            return [null, null];
+        }
+
+        $unit = isset($parts[1]) ? strtolower(trim((string) $parts[1])) : null;
+        $allowedUnits = ['gram', 'kilogram', 'milligram', 'tola', 'ounce', 'other'];
+        if ($unit !== null && $unit !== '' && !in_array($unit, $allowedUnits, true)) {
+            $unit = null;
+        }
+
+        return [$weight, $unit ?: null];
+    }
+
+    private function isCsvRowEmpty(array $row): bool
+    {
+        foreach ($row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function respondSave(bool $status, string $message, ?string $redirect = null, array $errors = [], int $statusCode = 200)
     {
         if ($this->request->isAJAX()) {

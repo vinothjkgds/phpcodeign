@@ -344,14 +344,13 @@ $(document).ready(function(){
             { data: 'product_image' },
             { data: 'product_name' },
             { data: 'category' },
-            { data: 'purity' },
             { data: 'is_active' },
             { data: 'created_at' },
             { data: 'action' }
         ],
-        order: [[5, 'desc']],
+        order: [[4, 'desc']],
         columnDefs: [
-            { orderable: false, targets: [0, 6] }
+            { orderable: false, targets: [0, 5] }
         ]
     });
 
@@ -468,6 +467,29 @@ if (typeof window.jQuery !== 'undefined') {
 <script>
 var salePurchaseTable;
 $(document).ready(function(){
+    function getSalePurchaseExportQuery() {
+        var params = new URLSearchParams();
+        var entryType = $('#filter_entry_type').val();
+        var merchantId = $('#filter_merchant_id').val();
+        var fromDate = $('#filter_from_date').val();
+        var toDate = $('#filter_to_date').val();
+
+        if (entryType) {
+            params.set('filter_entry_type', entryType);
+        }
+        if (merchantId) {
+            params.set('filter_merchant_id', merchantId);
+        }
+        if (fromDate) {
+            params.set('filter_from_date', fromDate);
+        }
+        if (toDate) {
+            params.set('filter_to_date', toDate);
+        }
+
+        return params.toString();
+    }
+
     salePurchaseTable = $('#salePurchaseTable').DataTable({
         processing: true,
         serverSide: true,
@@ -497,7 +519,8 @@ $(document).ready(function(){
         ],
         order: [[0, 'desc']],
         columnDefs: [
-            { orderable: false, targets: [11] }
+            { orderable: false, targets: [11] },
+            { targets: [2], render: function(data) { return data; } }
         ]
     });
 
@@ -511,6 +534,44 @@ $(document).ready(function(){
         $('#filter_from_date').val('');
         $('#filter_to_date').val('');
         salePurchaseTable.ajax.reload();
+    });
+
+    $(document).on('click', '#exportSalePurchaseCsvFiltered', function(){
+        var query = getSalePurchaseExportQuery();
+        var url = "<?= site_url('salepurchase/export/csv') ?>";
+        if (query) {
+            url += '?' + query;
+        }
+        window.open(url, '_blank');
+    });
+
+    $(document).on('click', '#exportSalePurchaseExcelFiltered', function(){
+        var query = getSalePurchaseExportQuery();
+        var url = "<?= site_url('salepurchase/export/excel') ?>";
+        if (query) {
+            url += '?' + query;
+        }
+        window.open(url, '_blank');
+    });
+
+    $(document).on('click', '#exportSalePurchaseCsvAll', function(){
+        window.open("<?= site_url('salepurchase/export/csv') ?>", '_blank');
+    });
+
+    $(document).on('click', '#exportSalePurchaseExcelAll', function(){
+        window.open("<?= site_url('salepurchase/export/excel') ?>", '_blank');
+    });
+
+    $(document).on('click', '#importSalePurchaseCsv', function(){
+        $('#importSalePurchaseCsvFile').val('');
+        $('#importSalePurchaseCsvFile').trigger('click');
+    });
+
+    $(document).on('change', '#importSalePurchaseCsvFile', function(){
+        if (!this.files || !this.files.length) {
+            return;
+        }
+        $('#importSalePurchaseCsvForm').trigger('submit');
     });
 });
 </script>

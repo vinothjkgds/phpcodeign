@@ -41,13 +41,6 @@
 
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="purity">Purity</label>
-                                <input id="purity" class="form-control" name="purity" type="text" value="<?= esc($productInfo->purity ?? '') ?>" placeholder="Enter Purity (e.g. 999, 916)">
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="form-group">
                                 <label for="product_image">Product Image</label>
                                 <input id="product_image" class="form-control" name="product_image" type="file" accept=".jpg,.jpeg,.png,.webp">
                                 <small class="text-muted">Allowed: JPG, JPEG, PNG, WEBP</small>

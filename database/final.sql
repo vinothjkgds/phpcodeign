@@ -138,7 +138,6 @@ CREATE TABLE products (
     product_name VARCHAR(255) NOT NULL,
     product_image VARCHAR(500) NULL,
     category VARCHAR(50) NULL,
-    purity VARCHAR(20) NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -147,14 +146,15 @@ CREATE TABLE products (
 
 -- =============================================
 -- SAMPLE PRODUCTS DATA
-INSERT INTO products (shop_id, product_name, category, purity, is_active)
+INSERT INTO products (shop_id, product_name, category, is_active)
 VALUES
-(1, 'Gold Bar 999', 'gold', '999', TRUE),
-(1, 'Gold Coin 999', 'gold', '999', TRUE),
-(1, 'Gold 999', 'gold', '999', TRUE),
-(1, 'Gold Bar 916', 'gold', '916', TRUE),
-(1, 'Gold Coin 916', 'gold', '916', TRUE),
-(1, 'Gold 916', 'gold', '916', TRUE);
+(1, 'Gold Bar', 'gold', TRUE),
+(1, 'Gold Coin', 'gold', TRUE),
+(1, 'Gold', 'gold', TRUE),
+(1, 'Silver Bar', 'silver', TRUE),
+(1, 'Silver Coin', 'silver', TRUE),
+(1, 'Silver', 'silver', TRUE)
+;
 
 -- =============================================
 -- MERCHANT LEDGER (SALE / PURCHASE / PAYMENT)

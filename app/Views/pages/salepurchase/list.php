@@ -8,8 +8,19 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="card-title mb-0">Sale / Purchase Entries</h4>
-            <a href="<?= base_url('salepurchase/add') ?>" class="btn btn-primary">Add Entry</a>
+            <div>
+                <button type="button" id="importSalePurchaseCsv" class="btn btn-outline-primary me-2">Import CSV</button>
+                <button type="button" id="exportSalePurchaseCsvFiltered" class="btn btn-outline-secondary me-2">Export Filtered CSV</button>
+                <button type="button" id="exportSalePurchaseExcelFiltered" class="btn btn-outline-success me-2">Export Filtered Excel</button>
+                <button type="button" id="exportSalePurchaseCsvAll" class="btn btn-outline-secondary me-2">Export All CSV</button>
+                <button type="button" id="exportSalePurchaseExcelAll" class="btn btn-outline-success me-2">Export All Excel</button>
+                <a href="<?= base_url('salepurchase/add') ?>" class="btn btn-primary">Add Entry</a>
+            </div>
         </div>
+        <form id="importSalePurchaseCsvForm" action="<?= site_url('salepurchase/import/csv') ?>" method="post" enctype="multipart/form-data" style="display:none;">
+            <?= csrf_field() ?>
+            <input type="file" id="importSalePurchaseCsvFile" name="import_file" accept=".csv,text/csv">
+        </form>
 
         <div class="row g-3">
             <div class="col-md-3">
