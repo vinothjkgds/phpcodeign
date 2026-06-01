@@ -34,6 +34,36 @@
 
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label for="current_stock">Current Stock <span class="text-danger">*</span></label>
+                                <input id="current_stock" class="form-control" name="current_stock" type="number" step="0.001" min="0" required value="0.000" placeholder="Enter Current Stock">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="stock_unit">Stock Unit <span class="text-danger">*</span></label>
+                                <select class="form-select rounded-0" id="stock_unit" name="stock_unit" required>
+                                    <option value="gram" selected>gm</option>
+                                    <option value="kilogram">kg</option>
+                                    <option value="milligram">mg</option>
+                                    <option value="tola">Tola</option>
+                                    <option value="ounce">oz</option>
+                                    <option value="piece">pc</option>
+                                    <option value="liter">ltr</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="reorder_level">Reorder Level <span class="text-danger">*</span></label>
+                                <input id="reorder_level" class="form-control" name="reorder_level" type="number" step="0.001" min="0" required value="100.000" placeholder="Enter Reorder Level">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label for="product_image">Product Image</label>
                                 <input id="product_image" class="form-control" name="product_image" type="file" accept=".jpg,.jpeg,.png,.webp">
                                 <small class="text-muted">Allowed: JPG, JPEG, PNG, WEBP</small>

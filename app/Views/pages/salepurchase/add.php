@@ -63,11 +63,13 @@
                                 <select class="form-select rounded-0" id="product_id" name="product_id">
                                     <option value="">Select Product</option>
                                     <?php foreach (($products ?? []) as $product): ?>
-                                        <option value="<?= (int) $product->product_id ?>">
+                                        <option value="<?= (int) $product->product_id ?>" data-stock="<?= esc(number_format((float) ($product->current_stock ?? 0), 3, '.', '')) ?>" data-stock-unit="<?= esc((string) ($product->stock_unit ?? '')) ?>" data-reorder-level="<?= esc(number_format((float) ($product->reorder_level ?? 0), 3, '.', '')) ?>">
                                             <?= esc($product->product_name) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                                <small class="text-muted d-block mt-1" id="productStockInfo">Available stock: -</small>
+                                <small class="text-danger d-none" id="productStockWarning">Insufficient stock for this sale.</small>
                             </div>
                         </div>
 
@@ -83,11 +85,11 @@
                                 <label for="weight_unit">Weight Unit <span class="text-danger" id="weightUnitRequiredMark">*</span></label>
                                 <select class="form-select rounded-0" id="weight_unit" name="weight_unit">
                                     <option value="">Select Unit</option>
-                                    <option value="gram">Gram</option>
-                                    <option value="kilogram">Kilogram</option>
-                                    <option value="milligram">Milligram</option>
+                                    <option value="gram">gm</option>
+                                    <option value="kilogram">kg</option>
+                                    <option value="milligram">mg</option>
                                     <option value="tola">Tola</option>
-                                    <option value="ounce">Ounce</option>
+                                    <option value="ounce">oz</option>
                                     <option value="other">Other</option>
                                 </select>
                             </div>

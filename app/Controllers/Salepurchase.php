@@ -129,6 +129,22 @@ class Salepurchase extends BaseController
                 return $this->respondSave(false, 'Selected merchant is invalid.', null, ['merchant_id' => 'Selected merchant is invalid.'], 422);
             }
 
+            $productId = (int) ($this->request->getPost('product_id') ?: 0);
+            $weightInput = trim((string) $this->request->getPost('weight'));
+            $weightUnitInput = trim((string) $this->request->getPost('weight_unit'));
+            $weightValue = $weightInput !== '' ? (float) $weightInput : null;
+
+            if ($requiresWeight) {
+                if ($productId <= 0) {
+                    return $this->respondSave(false, 'Please select product for sale/purchase.', null, ['product_id' => 'Please select product for sale/purchase.'], 422);
+                }
+
+                $product = $this->salePurchaseModel->getProductByIdForShop($shopId, $productId);
+                if (!$product || !(int) ($product['is_active'] ?? 0)) {
+                    return $this->respondSave(false, 'Selected product is invalid.', null, ['product_id' => 'Selected product is invalid.'], 422);
+                }
+            }
+
             $receivableDelta = 0;
             $payableDelta = 0;
             if ($entryType === 'opening') {
@@ -157,18 +173,15 @@ class Salepurchase extends BaseController
                 $receivableDelta = $amount;
             }
 
-            $weightInput = trim((string) $this->request->getPost('weight'));
-            $weightUnitInput = trim((string) $this->request->getPost('weight_unit'));
-
             $data = [
                 'shop_id' => $shopId,
                 'merchant_id' => $merchantId,
                 'entry_date' => $entryDate,
                 'entry_type' => $entryType,
                 'txn_ref' => trim((string) $this->request->getPost('txn_ref')) ?: null,
-                'product_id' => (int) ($this->request->getPost('product_id') ?: 0) ?: null,
+                'product_id' => $productId ?: null,
                 'description' => trim((string) $this->request->getPost('description')) ?: null,
-                'weight' => $weightInput !== '' ? (float) $weightInput : null,
+                'weight' => $weightValue,
                 'weight_unit' => $weightUnitInput !== '' ? $weightUnitInput : null,
                 'purity' => trim((string) $this->request->getPost('purity')) ?: null,
                 'amount' => $amount,
@@ -176,7 +189,12 @@ class Salepurchase extends BaseController
                 'payable_delta' => $payableDelta,
             ];
 
-            $this->salePurchaseModel->addEntry($data);
+            $createdBy = null;
+            $entryResult = $this->salePurchaseModel->addEntryWithStock($data, $createdBy);
+            if (!($entryResult['status'] ?? false)) {
+                return $this->respondSave(false, (string) ($entryResult['message'] ?? 'Failed to save transaction.'), null, [], 422);
+            }
+
             return $this->respondSave(true, 'Sale/Purchase entry added successfully.', site_url('salepurchase'));
         } catch (\Throwable $e) {
             return $this->respondSave(false, $e->getMessage(), null, [], 500);
@@ -503,7 +521,13 @@ class Salepurchase extends BaseController
                 'payable_delta' => 0,
             ];
 
-            $this->salePurchaseModel->addEntry($insertData);
+            $importResult = $this->salePurchaseModel->addEntryWithStock($insertData, null);
+            if (!($importResult['status'] ?? false)) {
+                $errorCount++;
+                $errors[] = 'Line ' . $lineNumber . ': ' . (string) ($importResult['message'] ?? 'failed to save entry.');
+                continue;
+            }
+
             $importedCount++;
         }
 

@@ -5,6 +5,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS product_stock_history;
 DROP TABLE IF EXISTS merchant_ledger;
 DROP TABLE IF EXISTS merchants;
 DROP TABLE IF EXISTS users;
@@ -130,7 +131,7 @@ VALUES
 
 
 -- =============================================
--- PRODUCTS
+-- PRODUCTS (with stock management)
 -- =============================================
 CREATE TABLE products (
     product_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -138,6 +139,9 @@ CREATE TABLE products (
     product_name VARCHAR(255) NOT NULL,
     product_image VARCHAR(500) NULL,
     category VARCHAR(50) NULL,
+    current_stock DECIMAL(12,3) NOT NULL DEFAULT 0.000,
+    stock_unit ENUM('gram','kilogram','milligram','tola','ounce','piece','liter','other') NOT NULL DEFAULT 'gram',
+    reorder_level DECIMAL(12,3) NOT NULL DEFAULT 100.000,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -145,15 +149,16 @@ CREATE TABLE products (
 );
 
 -- =============================================
--- SAMPLE PRODUCTS DATA
-INSERT INTO products (shop_id, product_name, category, is_active)
+-- SAMPLE PRODUCTS DATA (with initial stock)
+-- =============================================
+INSERT INTO products (shop_id, product_name, category, current_stock, stock_unit, reorder_level, is_active)
 VALUES
-(1, 'Gold Bar', 'gold', TRUE),
-(1, 'Gold Coin', 'gold', TRUE),
-(1, 'Gold', 'gold', TRUE),
-(1, 'Silver Bar', 'silver', TRUE),
-(1, 'Silver Coin', 'silver', TRUE),
-(1, 'Silver', 'silver', TRUE)
+(1, 'Gold Bar', 'gold', 250.000, 'gram', 100.000, TRUE),
+(1, 'Gold Coin', 'gold', 500.000, 'gram', 150.000, TRUE),
+(1, 'Gold', 'gold', 1000.000, 'gram', 200.000, TRUE),
+(1, 'Silver Bar', 'silver', 2000.000, 'gram', 500.000, TRUE),
+(1, 'Silver Coin', 'silver', 1500.000, 'gram', 400.000, TRUE),
+(1, 'Silver', 'silver', 5000.000, 'gram', 1000.000, TRUE)
 ;
 
 -- =============================================
@@ -189,6 +194,32 @@ CREATE TABLE merchant_ledger (
 );
 
 -- =============================================
+-- PRODUCT STOCK HISTORY (Audit Trail)
+-- Tracks all stock movements (sales, purchases, adjustments)
+-- =============================================
+CREATE TABLE product_stock_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    shop_id INT NOT NULL,
+    product_id INT NOT NULL,
+    movement_type ENUM('purchase','sale','adjustment','opening') NOT NULL,
+    quantity DECIMAL(12,3) NOT NULL,
+    stock_unit ENUM('gram','kilogram','milligram','tola','ounce','piece','liter','other') NOT NULL,
+    stock_before DECIMAL(12,3) NOT NULL,
+    stock_after DECIMAL(12,3) NOT NULL,
+    reference_type ENUM('merchant_ledger','manual','system') NULL,
+    reference_id INT NULL,
+    txn_ref VARCHAR(50) NULL,
+    notes VARCHAR(500) NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_stock_history_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
+    CONSTRAINT fk_stock_history_product FOREIGN KEY (product_id) REFERENCES products(product_id),
+    CONSTRAINT fk_stock_history_user FOREIGN KEY (created_by) REFERENCES users(user_id),
+    INDEX idx_stock_history_product_date (product_id, created_at),
+    INDEX idx_stock_history_shop_date (shop_id, created_at)
+);
+
+-- =============================================
 -- LEDGER SAMPLE DATA
 -- CASE 1: Sale to merchant + payment received
 -- CASE 2: Purchase from merchant (shop payable increases)
@@ -220,15 +251,58 @@ VALUES
 (1, 3, '2026-05-18 17:00:00', 'payment_paid', 'PAY-0001', NULL, 'Paid against purchases', NULL, NULL, NULL, 70000.00, 0.00, -70000.00);
 
 -- =============================================
--- BALANCE VIEW QUERY (run when needed)
+-- STOCK HISTORY INITIAL DATA
+-- Opening balances for products
+-- =============================================
+INSERT INTO product_stock_history
+(shop_id, product_id, movement_type, quantity, stock_unit, stock_before, stock_after, reference_type, created_by, notes)
+VALUES
+(1, 1, 'opening', 250.000, 'gram', 0.000, 250.000, 'system', 1, 'Opening stock: Gold Bar'),
+(1, 2, 'opening', 500.000, 'gram', 0.000, 500.000, 'system', 1, 'Opening stock: Gold Coin'),
+(1, 3, 'opening', 1000.000, 'gram', 0.000, 1000.000, 'system', 1, 'Opening stock: Gold (bulk)'),
+(1, 4, 'opening', 2000.000, 'gram', 0.000, 2000.000, 'system', 1, 'Opening stock: Silver Bar'),
+(1, 5, 'opening', 1500.000, 'gram', 0.000, 1500.000, 'system', 1, 'Opening stock: Silver Coin'),
+(1, 6, 'opening', 5000.000, 'gram', 0.000, 5000.000, 'system', 1, 'Opening stock: Silver (bulk)');
+
+-- =============================================
+-- STOCK MOVEMENTS FROM SALES/PURCHASES
+-- Linked to merchant_ledger transactions
+-- =============================================
+-- Sale to Ramesh Kumar: 40g Gold 999 (merchant_ledger ledger_id reference)
+INSERT INTO product_stock_history
+(shop_id, product_id, movement_type, quantity, stock_unit, stock_before, stock_after, reference_type, reference_id, txn_ref, created_by, notes)
+VALUES
+(1, 1, 'sale', 40.000, 'gram', 250.000, 210.000, 'merchant_ledger', 2, 'SAL-0001', 1, 'Sold 40g Gold to Ramesh Kumar');
+
+-- Purchase from Lakshmi Retail: 20g Gold 999
+INSERT INTO product_stock_history
+(shop_id, product_id, movement_type, quantity, stock_unit, stock_before, stock_after, reference_type, reference_id, txn_ref, created_by, notes)
+VALUES
+(1, 1, 'purchase', 20.000, 'gram', 210.000, 230.000, 'merchant_ledger', 5, 'PUR-0001', 1, 'Purchased 20g Gold from Lakshmi Retail');
+
+-- Sale to Sri Jewelry: 15g Gold 916
+INSERT INTO product_stock_history
+(shop_id, product_id, movement_type, quantity, stock_unit, stock_before, stock_after, reference_type, reference_id, txn_ref, created_by, notes)
+VALUES
+(1, 1, 'sale', 15.000, 'gram', 230.000, 215.000, 'merchant_ledger', 6, 'SAL-0002', 1, 'Sold 15g Gold 916 to Sri Jewelry Store');
+
+-- Purchase from Sri Jewelry: 8g Gold 999
+INSERT INTO product_stock_history
+(shop_id, product_id, movement_type, quantity, stock_unit, stock_before, stock_after, reference_type, reference_id, txn_ref, created_by, notes)
+VALUES
+(1, 1, 'purchase', 8.000, 'gram', 215.000, 223.000, 'merchant_ledger', 7, 'PUR-0002', 1, 'Purchased 8g Gold from Sri Jewelry Store');
+
+-- =============================================
+-- CURRENT STOCK SUMMARY
 -- =============================================
 -- SELECT
---   m.merchant_id,
---   m.merchant_name,
---   SUM(l.receivable_delta) AS receivable_balance,
---   SUM(l.payable_delta) AS payable_balance
--- FROM merchant_ledger l
--- JOIN merchants m ON m.merchant_id = l.merchant_id
--- WHERE l.shop_id = 1
--- GROUP BY m.merchant_id, m.merchant_name
--- ORDER BY m.merchant_name;
+--   p.product_id,
+--   p.product_name,
+--   p.category,
+--   p.current_stock,
+--   p.stock_unit,
+--   p.reorder_level,
+--   CASE WHEN p.current_stock <= p.reorder_level THEN 'LOW' ELSE 'OK' END AS stock_status
+-- FROM products p
+-- WHERE p.shop_id = 1
+-- ORDER BY p.category, p.product_name;

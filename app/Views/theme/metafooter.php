@@ -311,12 +311,36 @@ if (typeof window.jQuery !== 'undefined') {
                         product_name: {
                             required: true
                         },
+                        current_stock: {
+                            required: true,
+                            number: true,
+                            min: 0
+                        },
+                        stock_unit: {
+                            required: true
+                        },
+                        reorder_level: {
+                            required: true,
+                            number: true,
+                            min: 0
+                        },
                         product_image: {
                             imageExtension: true
                         }
                     },
                     messages: {
                         product_name: 'Please enter product name',
+                        current_stock: {
+                            required: 'Please enter current stock',
+                            number: 'Current stock must be a valid number',
+                            min: 'Current stock cannot be negative'
+                        },
+                        stock_unit: 'Please select stock unit',
+                        reorder_level: {
+                            required: 'Please enter reorder level',
+                            number: 'Reorder level must be a valid number',
+                            min: 'Reorder level cannot be negative'
+                        },
                         product_image: 'Only JPG, JPEG, PNG, or WEBP files are allowed'
                     }
                 });
@@ -344,13 +368,14 @@ $(document).ready(function(){
             { data: 'product_image' },
             { data: 'product_name' },
             { data: 'category' },
+            { data: 'stock' },
             { data: 'is_active' },
             { data: 'created_at' },
             { data: 'action' }
         ],
-        order: [[4, 'desc']],
+        order: [[5, 'desc']],
         columnDefs: [
-            { orderable: false, targets: [0, 5] }
+            { orderable: false, targets: [0, 6] }
         ]
     });
 
@@ -369,6 +394,207 @@ $(document).ready(function(){
                 }
             });
         }
+    });
+});
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'product' && trim(strtolower(current_method())) == 'stockhistory'): ?>
+<script>
+var stockHistoryTable;
+$(document).ready(function(){
+    stockHistoryTable = $('#stockHistoryTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('product/getStockHistoryListJson') ?>",
+            type: 'POST',
+            data: function(d) {
+                d.filter_product_id = $('#filter_product_id').val();
+                d.filter_movement_type = $('#filter_movement_type').val();
+                d.filter_from_date = $('#filter_from_date').val();
+                d.filter_to_date = $('#filter_to_date').val();
+            }
+        },
+        columns: [
+            { data: 'history_id' },
+            { data: 'created_at' },
+            { data: 'product_name' },
+            { data: 'movement_type' },
+            { data: 'quantity' },
+            { data: 'stock_before' },
+            { data: 'stock_after' },
+            { data: 'txn_ref' },
+            { data: 'notes' }
+        ],
+        order: [[0, 'desc']],
+        columnDefs: [
+            { targets: [3], render: function(data) { return data; } }
+        ]
+    });
+
+    $(document).on('click', '#applyStockHistoryFilter', function(){
+        stockHistoryTable.ajax.reload();
+    });
+
+    $(document).on('click', '#resetStockHistoryFilter', function(){
+        $('#filter_product_id').val('');
+        $('#filter_movement_type').val('');
+        $('#filter_from_date').val('');
+        $('#filter_to_date').val('');
+        stockHistoryTable.ajax.reload();
+    });
+
+    // Add Stock — load product info on product change
+    $(document).on('change', '#sh_product_id', function() {
+        var productId = $(this).val();
+        var $hint = $('#sh_unit_hint');
+        var $existing = $('#sh_existing_stock');
+        var $unit = $('#sh_unit');
+
+        if (!productId) {
+            $existing.text('--');
+            $hint.text('');
+            return;
+        }
+
+        $.getJSON('<?= site_url('product/getProductInfo') ?>/' + productId, function(res) {
+            if (res && res.status) {
+                $existing.text(res.current_stock_formatted);
+                $hint.text('Product stock unit: ' + res.stock_unit_label);
+                $unit.val(res.stock_unit);
+            }
+        });
+    });
+
+    // Add Stock — form submit
+    $(document).on('submit', '#stockHistoryAddStockForm', function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        var $msg = $('#shAddStockMessage');
+        var productId = $('#sh_product_id').val();
+
+        if (!productId) {
+            $msg.removeClass('alert-success').addClass('alert alert-danger').text('Please select a product.').show();
+            return;
+        }
+
+        $btn.prop('disabled', true);
+        $msg.hide().removeClass('alert alert-success alert-danger').html('');
+
+        $.ajax({
+            url: '<?= site_url('product/adjustStock') ?>/' + productId,
+            type: 'POST',
+            data: {
+                adjustment_quantity: $('#sh_quantity').val(),
+                adjustment_unit: $('#sh_unit').val(),
+                adjustment_notes: $('#sh_notes').val()
+            },
+            dataType: 'json'
+        }).done(function(res) {
+            if (res && res.status) {
+                $msg.addClass('alert alert-success').html(res.message || 'Stock added successfully.').show();
+                $form[0].reset();
+                $('#sh_existing_stock').text('--');
+                $('#sh_unit_hint').text('');
+                stockHistoryTable.ajax.reload();
+                return;
+            }
+            $msg.addClass('alert alert-danger').html((res && res.message) ? res.message : 'Failed to add stock.').show();
+        }).fail(function(xhr) {
+            var err = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to add stock.';
+            $msg.addClass('alert alert-danger').html(err).show();
+        }).always(function() {
+            $btn.prop('disabled', false);
+        });
+    });
+});
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'product' && trim(strtolower(current_method())) == 'view'): ?>
+<script src="<?= base_url() ?>assets/vendors/chart.js/chart.umd.js"></script>
+<script>
+$(document).ready(function(){
+    if ($('#productViewStockHistoryTable').length) {
+        $('#productViewStockHistoryTable').DataTable({
+            order: [[0, 'desc']],
+            pageLength: 25,
+            columnDefs: [
+                { orderable: false, targets: [7] }
+            ]
+        });
+    }
+
+    if (typeof Chart !== 'undefined' && document.getElementById('productStockHistoryChart') && window.ProductStockViewChartData) {
+        var chartData = window.ProductStockViewChartData;
+        var ctx = document.getElementById('productStockHistoryChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels || [],
+                datasets: [{
+                    label: 'Stock (' + (chartData.unit || '') + ')',
+                    data: chartData.values || [],
+                    borderColor: 'rgba(63,81,181,1)',
+                    backgroundColor: 'rgba(63,81,181,0.65)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return Number(value).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' ' + (chartData.unit || '');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    $(document).on('submit', '#adjustProductStockForm', function(e) {
+        e.preventDefault();
+
+        var $form = $(this);
+        var $submitBtn = $form.find('button[type="submit"]');
+        var $message = $('#adjustStockMessage');
+
+        $submitBtn.prop('disabled', true);
+        $message.hide().removeClass('alert alert-success alert-danger').html('');
+
+        $.ajax({
+            url: $form.attr('action'),
+            type: 'POST',
+            data: $form.serialize(),
+            dataType: 'json'
+        }).done(function(response) {
+            if (response && response.status) {
+                $message.addClass('alert alert-success').html(response.message || 'Stock added successfully.').show();
+                setTimeout(function() {
+                    window.location.reload();
+                }, 700);
+                return;
+            }
+
+            $message.addClass('alert alert-danger').html((response && response.message) ? response.message : 'Failed to add stock.').show();
+        }).fail(function(xhr) {
+            var errorMessage = 'Failed to add stock.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            $message.addClass('alert alert-danger').html(errorMessage).show();
+        }).always(function() {
+            $submitBtn.prop('disabled', false);
+        });
     });
 });
 </script>
@@ -539,8 +765,125 @@ if (typeof window.jQuery !== 'undefined') {
             $('#weight_unit').prop('required', false).val('');
             $('#product_id').val('');
             $('#purity').val('');
+            $('#productStockInfo').text('Available stock: -');
+            $('#productStockWarning').addClass('d-none').text('Insufficient stock for this sale.');
 
             updateSalePurchaseDescription(false);
+        }
+
+        function getSelectedProductStockMeta() {
+            var option = $('#product_id option:selected');
+            if (!option.length || !option.val()) {
+                return null;
+            }
+
+            return {
+                stock: parseFloat(option.attr('data-stock') || '0') || 0,
+                unit: (option.attr('data-stock-unit') || '').trim(),
+                reorderLevel: parseFloat(option.attr('data-reorder-level') || '0') || 0
+            };
+        }
+
+        function convertWeightUnit(value, fromUnit, toUnit) {
+            var from = (fromUnit || '').toLowerCase().trim();
+            var to = (toUnit || '').toLowerCase().trim();
+
+            if (!from || !to) {
+                return null;
+            }
+
+            if (from === to) {
+                return value;
+            }
+
+            var massUnitToGram = {
+                milligram: 0.001,
+                gram: 1,
+                kilogram: 1000,
+                tola: 11.6638038,
+                ounce: 28.349523125
+            };
+
+            if (typeof massUnitToGram[from] === 'undefined' || typeof massUnitToGram[to] === 'undefined') {
+                return null;
+            }
+
+            var valueInGram = value * massUnitToGram[from];
+            return valueInGram / massUnitToGram[to];
+        }
+
+        function shortUnitLabel(unit) {
+            var normalized = (unit || '').toLowerCase().trim();
+            var map = {
+                kilogram: 'kg',
+                gram: 'gm',
+                milligram: 'mg',
+                ounce: 'oz',
+                piece: 'pc',
+                liter: 'ltr',
+                tola: 'tola'
+            };
+
+            return map[normalized] || unit;
+        }
+
+        function updateProductStockInfo() {
+            var meta = getSelectedProductStockMeta();
+            if (!meta) {
+                $('#productStockInfo').text('Available stock: -');
+                $('#productStockWarning').addClass('d-none').text('Insufficient stock for this sale.');
+                return;
+            }
+
+            var stockText = 'Available stock: ' + meta.stock.toFixed(3) + ' ' + shortUnitLabel(meta.unit);
+            if (meta.stock <= meta.reorderLevel) {
+                stockText += ' (LOW)';
+            }
+            $('#productStockInfo').text(stockText);
+
+            var selectedWeightUnit = ($('#weight_unit').val() || '').trim();
+            if (selectedWeightUnit !== '') {
+                var conversionCheck = convertWeightUnit(1, selectedWeightUnit, meta.unit);
+                if (conversionCheck === null) {
+                    $('#productStockWarning').removeClass('d-none').text('Cannot convert selected weight unit to product stock unit (' + shortUnitLabel(meta.unit) + ').');
+                    return;
+                }
+            }
+
+            $('#productStockWarning').addClass('d-none').text('Insufficient stock for this sale.');
+        }
+
+        function validateStockBeforeSubmit() {
+            var type = $('#entry_type').val();
+            if (type !== 'sale') {
+                return true;
+            }
+
+            var meta = getSelectedProductStockMeta();
+            if (!meta) {
+                return true;
+            }
+
+            var enteredWeight = parseFloat($('#weight').val() || '0') || 0;
+            var selectedWeightUnit = ($('#weight_unit').val() || '').trim();
+
+            var convertedWeight = enteredWeight;
+            if (selectedWeightUnit !== '') {
+                convertedWeight = convertWeightUnit(enteredWeight, selectedWeightUnit, meta.unit);
+            }
+
+            if (convertedWeight === null) {
+                $('#productStockWarning').removeClass('d-none').text('Cannot convert selected weight unit to product stock unit (' + shortUnitLabel(meta.unit) + ').');
+                return false;
+            }
+
+            if (enteredWeight > 0 && convertedWeight > meta.stock) {
+                $('#productStockWarning').removeClass('d-none').text('Insufficient stock. Available: ' + meta.stock.toFixed(3) + ' ' + shortUnitLabel(meta.unit) + '.');
+                return false;
+            }
+
+            $('#productStockWarning').addClass('d-none').text('Insufficient stock for this sale.');
+            return true;
         }
 
         $(document).ready(function(){
@@ -594,11 +937,25 @@ if (typeof window.jQuery !== 'undefined') {
 
             $(document).on('change', '#entry_type', function(){
                 toggleTradeFieldsByEntryType();
+                updateProductStockInfo();
                 updateSalePurchaseDescription(false);
             });
 
             $(document).on('change input', '#merchant_id, #opening_balance_type, #product_id, #weight, #weight_unit, #purity, #amount', function(){
+                if ($(this).attr('id') === 'product_id' || $(this).attr('id') === 'weight' || $(this).attr('id') === 'weight_unit') {
+                    updateProductStockInfo();
+                    validateStockBeforeSubmit();
+                }
                 updateSalePurchaseDescription(false);
+            });
+
+            $(document).on('submit', '#addSalePurchase', function(e){
+                if (!validateStockBeforeSubmit()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return false;
+                }
+                return true;
             });
 
             $(document).on('input', '#description', function(){
@@ -618,6 +975,7 @@ if (typeof window.jQuery !== 'undefined') {
             });
 
             toggleTradeFieldsByEntryType();
+            updateProductStockInfo();
             updateSalePurchaseDescription(true);
         });
     })(window.jQuery);

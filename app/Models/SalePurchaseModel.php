@@ -16,6 +16,148 @@ class SalePurchaseModel extends Model
         return $this->insert($data);
     }
 
+    public function getProductByIdForShop(int $shopId, int $productId): ?array
+    {
+        $row = $this->db->table('products')
+            ->select('product_id, product_name, current_stock, stock_unit, reorder_level, is_active')
+            ->where('shop_id', $shopId)
+            ->where('product_id', $productId)
+            ->get()
+            ->getRowArray();
+
+        return $row ?: null;
+    }
+
+    public function addEntryWithStock(array $data, ?int $createdBy = null): array
+    {
+        $entryType = (string) ($data['entry_type'] ?? '');
+        $shopId = (int) ($data['shop_id'] ?? 0);
+        $productId = isset($data['product_id']) ? (int) $data['product_id'] : 0;
+        $weight = isset($data['weight']) ? (float) $data['weight'] : 0.0;
+        $weightUnit = (string) ($data['weight_unit'] ?? '');
+
+        $isTradeEntry = in_array($entryType, ['sale', 'purchase'], true);
+
+        $this->db->transBegin();
+
+        try {
+            $stockBefore = null;
+            $stockAfter = null;
+            $productStockUnit = null;
+            $convertedWeightForStock = null;
+
+            if ($isTradeEntry) {
+                if ($productId <= 0 || $weight <= 0 || $weightUnit === '' || $shopId <= 0) {
+                    throw new \RuntimeException('Product, weight and weight unit are required for sale/purchase.');
+                }
+
+                $product = $this->db->query(
+                    'SELECT product_id, product_name, current_stock, stock_unit, is_active FROM products WHERE shop_id = ? AND product_id = ? LIMIT 1 FOR UPDATE',
+                    [$shopId, $productId]
+                )->getRowArray();
+
+                if (!$product || !(int) ($product['is_active'] ?? 0)) {
+                    throw new \RuntimeException('Selected product is invalid or inactive.');
+                }
+
+                $productStockUnit = (string) ($product['stock_unit'] ?? '');
+                $convertedWeightForStock = $this->convertWeightToUnit($weight, $weightUnit, $productStockUnit);
+                if ($convertedWeightForStock === null) {
+                    throw new \RuntimeException('Cannot convert weight unit from ' . $weightUnit . ' to ' . $productStockUnit . '.');
+                }
+
+                $stockBefore = (float) ($product['current_stock'] ?? 0);
+                if ($entryType === 'sale') {
+                    if ($stockBefore < $convertedWeightForStock) {
+                        throw new \RuntimeException('Insufficient stock. Available: ' . number_format($stockBefore, 3, '.', '') . ' ' . $productStockUnit . '.');
+                    }
+                    $stockAfter = $stockBefore - $convertedWeightForStock;
+                } else {
+                    $stockAfter = $stockBefore + $convertedWeightForStock;
+                }
+
+                $this->db->table('products')
+                    ->where('shop_id', $shopId)
+                    ->where('product_id', $productId)
+                    ->update([
+                        'current_stock' => $stockAfter,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+            }
+
+            $this->db->table($this->table)->insert($data);
+            $ledgerId = (int) $this->db->insertID();
+
+            if ($isTradeEntry && $productId > 0 && $stockBefore !== null && $stockAfter !== null) {
+                $this->db->table('product_stock_history')->insert([
+                    'shop_id' => $shopId,
+                    'product_id' => $productId,
+                    'movement_type' => $entryType,
+                    'quantity' => $convertedWeightForStock,
+                    'stock_unit' => $productStockUnit,
+                    'stock_before' => $stockBefore,
+                    'stock_after' => $stockAfter,
+                    'reference_type' => 'merchant_ledger',
+                    'reference_id' => $ledgerId,
+                    'txn_ref' => $data['txn_ref'] ?? null,
+                    'notes' => $data['description'] ?? null,
+                    'created_by' => $createdBy,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+
+            if ($this->db->transStatus() === false) {
+                throw new \RuntimeException('Failed to save transaction.');
+            }
+
+            $this->db->transCommit();
+
+            return [
+                'status' => true,
+                'ledger_id' => $ledgerId,
+                'stock_before' => $stockBefore,
+                'stock_after' => $stockAfter,
+            ];
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            return [
+                'status' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private function convertWeightToUnit(float $value, string $fromUnit, string $toUnit): ?float
+    {
+        $from = strtolower(trim($fromUnit));
+        $to = strtolower(trim($toUnit));
+
+        if ($from === '' || $to === '') {
+            return null;
+        }
+
+        if ($from === $to) {
+            return $value;
+        }
+
+        $massUnitToGram = [
+            'milligram' => 0.001,
+            'gram' => 1,
+            'kilogram' => 1000,
+            'tola' => 11.6638038,
+            'ounce' => 28.349523125,
+        ];
+
+        if (!isset($massUnitToGram[$from], $massUnitToGram[$to])) {
+            return null;
+        }
+
+        $valueInGram = $value * $massUnitToGram[$from];
+        $converted = $valueInGram / $massUnitToGram[$to];
+
+        return round($converted, 6);
+    }
+
     public function getSalePurchaseListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' l');
@@ -100,7 +242,7 @@ class SalePurchaseModel extends Model
             if ($row->weight !== null) {
                 $weightText = rtrim(rtrim(number_format((float) $row->weight, 3, '.', ''), '0'), '.');
                 if (!empty($row->weight_unit)) {
-                    $weightText .= ' ' . ucfirst((string) $row->weight_unit);
+                    $weightText .= ' ' . $this->shortUnitLabel((string) $row->weight_unit);
                 }
             }
 
@@ -108,7 +250,7 @@ class SalePurchaseModel extends Model
 
             $data[] = [
                 's_no' => (int) $row->ledger_id,
-                'entry_date' => !empty($row->entry_date) ? date('Y-m-d H:i', strtotime($row->entry_date)) : '-',
+                'entry_date' => $this->formatListDateTime($row->entry_date ?? null),
                 'entry_type' => $entryTypeBadge,
                 'merchant_name' => esc($row->merchant_name),
                 'product_name' => esc($productName),
@@ -221,7 +363,7 @@ class SalePurchaseModel extends Model
     public function getActiveProducts(int $shopId): array
     {
         return $this->db->table('products')
-            ->select('product_id, product_name')
+            ->select('product_id, product_name, current_stock, stock_unit, reorder_level')
             ->where('shop_id', $shopId)
             ->where('is_active', 1)
             ->orderBy('product_name', 'ASC')
@@ -263,5 +405,46 @@ class SalePurchaseModel extends Model
 
         $row = $builder->get()->getRowArray();
         return $row ?: null;
+    }
+
+    private function shortUnitLabel(string $unit): string
+    {
+        return match (strtolower(trim($unit))) {
+            'kilogram' => 'kg',
+            'gram' => 'gm',
+            'milligram' => 'mg',
+            'tola' => 'tola',
+            'ounce' => 'oz',
+            default => $unit,
+        };
+    }
+
+    private function formatListDateTime(?string $dateTime): string
+    {
+        if (empty($dateTime)) {
+            return '-';
+        }
+
+        $ts = strtotime($dateTime);
+        if ($ts === false) {
+            return '-';
+        }
+
+        $day = (int) date('j', $ts);
+        return $day . $this->ordinalSuffix($day) . date(' M Y g:i A', $ts);
+    }
+
+    private function ordinalSuffix(int $day): string
+    {
+        if ($day % 100 >= 11 && $day % 100 <= 13) {
+            return 'th';
+        }
+
+        return match ($day % 10) {
+            1 => 'st',
+            2 => 'nd',
+            3 => 'rd',
+            default => 'th',
+        };
     }
 }

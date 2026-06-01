@@ -44,10 +44,15 @@ $routes->group('employee', ['filter' => 'auth'], function($routes) {
 $routes->group('product', ['filter' => 'auth'], function($routes) {
     $routes->get('', 'Product::index');
     $routes->get('add', 'Product::add');
+    $routes->get('view/(:num)', 'Product::view/$1');
     $routes->get('edit/(:segment)', 'Product::edit/$1');
+    $routes->get('stock-history', 'Product::stockHistory');
     $routes->post('save', 'Product::save');
     $routes->post('save/(:segment)', 'Product::save/$1');
+    $routes->post('adjustStock/(:num)', 'Product::adjustStock/$1');
     $routes->post('getProductListJson', 'Product::getProductListJson');
+    $routes->post('getStockHistoryListJson', 'Product::getStockHistoryListJson');
+    $routes->get('getProductInfo/(:num)', 'Product::getProductInfo/$1');
     $routes->post('delete/(:segment)', 'Product::delete/$1');
 });
 

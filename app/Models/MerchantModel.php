@@ -136,7 +136,7 @@ class MerchantModel extends Model
                 'receivable_amount' => number_format((float) ($row->receivable_amount ?? 0), 2),
                 'payable_amount' => number_format((float) ($row->payable_amount ?? 0), 2),
                 'is_active' => $statusBadge,
-                'created_at' => date('Y-m-d', strtotime($row->created_at)),
+                'created_at' => $this->formatListDateTime($row->created_at ?? null),
                 'action' => $actionBtns
             ];
         }
@@ -276,5 +276,34 @@ class MerchantModel extends Model
         $builder->orderBy('l.ledger_id', 'ASC');
 
         return $builder->get()->getResultArray();
+    }
+
+    private function formatListDateTime(?string $dateTime): string
+    {
+        if (empty($dateTime)) {
+            return '-';
+        }
+
+        $ts = strtotime($dateTime);
+        if ($ts === false) {
+            return '-';
+        }
+
+        $day = (int) date('j', $ts);
+        return $day . $this->ordinalSuffix($day) . date(' M Y g:i A', $ts);
+    }
+
+    private function ordinalSuffix(int $day): string
+    {
+        if ($day % 100 >= 11 && $day % 100 <= 13) {
+            return 'th';
+        }
+
+        return match ($day % 10) {
+            1 => 'st',
+            2 => 'nd',
+            3 => 'rd',
+            default => 'th',
+        };
     }
 }

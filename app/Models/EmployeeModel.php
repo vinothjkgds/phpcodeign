@@ -115,8 +115,8 @@ class EmployeeModel extends Model
                 'mobileno' => esc($row->mobileno ?? '-'),
                 'user_type' => ucfirst((string) $row->user_type),
                 'is_active' => $statusBadge,
-                'last_login_at' => !empty($row->last_login_at) ? date('Y-m-d H:i', strtotime($row->last_login_at)) : '-',
-                'created_at' => !empty($row->created_at) ? date('Y-m-d', strtotime($row->created_at)) : '-',
+                'last_login_at' => $this->formatListDateTime($row->last_login_at ?? null),
+                'created_at' => $this->formatListDateTime($row->created_at ?? null),
                 'action' => $actionBtns,
             ];
         }
@@ -142,5 +142,34 @@ class EmployeeModel extends Model
             'recordsFiltered' => $filteredCount,
             'data' => $data,
         ];
+    }
+
+    private function formatListDateTime(?string $dateTime): string
+    {
+        if (empty($dateTime)) {
+            return '-';
+        }
+
+        $ts = strtotime($dateTime);
+        if ($ts === false) {
+            return '-';
+        }
+
+        $day = (int) date('j', $ts);
+        return $day . $this->ordinalSuffix($day) . date(' M Y g:i A', $ts);
+    }
+
+    private function ordinalSuffix(int $day): string
+    {
+        if ($day % 100 >= 11 && $day % 100 <= 13) {
+            return 'th';
+        }
+
+        return match ($day % 10) {
+            1 => 'st',
+            2 => 'nd',
+            3 => 'rd',
+            default => 'th',
+        };
     }
 }

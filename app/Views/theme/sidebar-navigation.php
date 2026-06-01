@@ -67,6 +67,9 @@
           <li class="nav-item">
             <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('product') ?>"><?= lang('App.sidebar.manageProduct') ?></a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'stockhistory') ? 'active' : '' ?>" href="<?= base_url('product/stock-history') ?>">Stock History</a>
+          </li>
         </ul>
       </div>
     </li>

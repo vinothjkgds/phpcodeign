@@ -41,6 +41,36 @@
 
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label for="current_stock">Current Stock <span class="text-danger">*</span></label>
+                                <input id="current_stock" class="form-control" name="current_stock" type="number" step="0.001" min="0" required value="<?= esc(number_format((float) ($productInfo->current_stock ?? 0), 3, '.', '')) ?>" placeholder="Enter Current Stock">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="stock_unit">Stock Unit <span class="text-danger">*</span></label>
+                                <select class="form-select rounded-0" id="stock_unit" name="stock_unit" required>
+                                    <option value="gram" <?= ($productInfo->stock_unit ?? 'gram') === 'gram' ? 'selected' : '' ?>>gm</option>
+                                    <option value="kilogram" <?= ($productInfo->stock_unit ?? '') === 'kilogram' ? 'selected' : '' ?>>kg</option>
+                                    <option value="milligram" <?= ($productInfo->stock_unit ?? '') === 'milligram' ? 'selected' : '' ?>>mg</option>
+                                    <option value="tola" <?= ($productInfo->stock_unit ?? '') === 'tola' ? 'selected' : '' ?>>Tola</option>
+                                    <option value="ounce" <?= ($productInfo->stock_unit ?? '') === 'ounce' ? 'selected' : '' ?>>oz</option>
+                                    <option value="piece" <?= ($productInfo->stock_unit ?? '') === 'piece' ? 'selected' : '' ?>>pc</option>
+                                    <option value="liter" <?= ($productInfo->stock_unit ?? '') === 'liter' ? 'selected' : '' ?>>ltr</option>
+                                    <option value="other" <?= ($productInfo->stock_unit ?? '') === 'other' ? 'selected' : '' ?>>Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="reorder_level">Reorder Level <span class="text-danger">*</span></label>
+                                <input id="reorder_level" class="form-control" name="reorder_level" type="number" step="0.001" min="0" required value="<?= esc(number_format((float) ($productInfo->reorder_level ?? 100), 3, '.', '')) ?>" placeholder="Enter Reorder Level">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label for="product_image">Product Image</label>
                                 <input id="product_image" class="form-control" name="product_image" type="file" accept=".jpg,.jpeg,.png,.webp">
                                 <small class="text-muted">Allowed: JPG, JPEG, PNG, WEBP</small>
