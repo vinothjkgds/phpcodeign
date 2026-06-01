@@ -42,6 +42,8 @@ return [
         'topMerchants' => 'Top Merchants by Volume',
         'recentTransactions' => 'Recent Transactions',
         'categorySplit' => 'Sales by Category (This Month)',
+        'stockHistoryTrend' => 'Stock History (Last 7 Days)',
+        'stockEntries' => 'Stock Entries',
         'merchantName' => 'Merchant',
         'type' => 'Type',
         'salesTotal' => 'Sales',

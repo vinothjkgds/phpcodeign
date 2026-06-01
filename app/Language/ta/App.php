@@ -42,6 +42,8 @@ return [
         'topMerchants' => 'சிறந்த வணிகர்கள்',
         'recentTransactions' => 'சமீபத்திய பரிவர்த்தனைகள்',
         'categorySplit' => 'வகை வாரியான விற்பனை (இம்மாதம்)',
+        'stockHistoryTrend' => 'சரக்கு வரலாறு (கடைசி 7 நாட்கள்)',
+        'stockEntries' => 'சரக்கு பதிவுகள்',
         'merchantName' => 'வணிகர்',
         'type' => 'வகை',
         'salesTotal' => 'விற்பனை',

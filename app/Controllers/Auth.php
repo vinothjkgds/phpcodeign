@@ -152,6 +152,8 @@ class Auth extends BaseController
         $recentTransactions                  = [];
         $categoryChartLabels                 = [];
         $categoryChartData                   = [];
+        $stockHistoryChartLabels             = [];
+        $stockHistoryChartData               = [];
 
         if ($shopId > 0) {
             $db = db_connect();
@@ -268,6 +270,24 @@ class Auth extends BaseController
                 $categoryChartLabels[] = ucfirst((string) $cr->category);
                 $categoryChartData[]   = (float) $cr->total_amount;
             }
+
+            // --- Stock history trend (last 7 days entries count)
+            $stockHistoryRows = $db->query(" 
+                SELECT
+                    DATE(created_at) AS day_key,
+                    COUNT(*) AS total_entries
+                FROM product_stock_history
+                WHERE shop_id = ?
+                  AND DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                GROUP BY day_key
+                ORDER BY day_key ASC
+            ", [$shopId])->getResult();
+
+            foreach ($stockHistoryRows as $sr) {
+                $ts = strtotime((string) ($sr->day_key ?? ''));
+                $stockHistoryChartLabels[] = $ts ? date('d M', $ts) : '-';
+                $stockHistoryChartData[]   = (int) ($sr->total_entries ?? 0);
+            }
         }
 
         $data = [
@@ -287,6 +307,8 @@ class Auth extends BaseController
             'recentTransactions'                   => $recentTransactions,
             'categoryChartLabels'                  => $categoryChartLabels,
             'categoryChartData'                    => $categoryChartData,
+            'stockHistoryChartLabels'              => $stockHistoryChartLabels,
+            'stockHistoryChartData'                => $stockHistoryChartData,
         ];
 
         return view('index', $data);

@@ -42,7 +42,8 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="current_stock">Current Stock <span class="text-danger">*</span></label>
-                                <input id="current_stock" class="form-control" name="current_stock" type="number" step="0.001" min="0" required value="<?= esc(number_format((float) ($productInfo->current_stock ?? 0), 3, '.', '')) ?>" placeholder="Enter Current Stock">
+                                <input id="current_stock" class="form-control" name="current_stock" type="number" step="0.001" min="0" required readonly value="<?= esc(number_format((float) ($productInfo->current_stock ?? 0), 3, '.', '')) ?>" placeholder="Enter Current Stock">
+                                <small class="text-muted">Stock can be adjusted from Stock History / Adjust Stock.</small>
                             </div>
                         </div>
 

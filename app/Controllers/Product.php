@@ -225,6 +225,8 @@ class Product extends BaseController
             ];
 
             if ($productId !== '') {
+                // Current stock is managed via adjustStock flow to keep stock history accurate.
+                $data['current_stock'] = (float) ($existingProduct->current_stock ?? 0);
                 $data['product_image'] = $existingProduct->product_image ?? null;
             }
 

@@ -1278,7 +1278,7 @@ if (typeof window.jQuery !== 'undefined') {
 <?php endif; ?>
 
 <?php if (trim(strtolower(current_controller())) == 'auth' && trim(strtolower(current_method())) == 'dashboard'): ?>
-<?php if (!empty($monthlyTrendLabels) || !empty($categoryChartLabels)): ?>
+<?php if (!empty($monthlyTrendLabels) || !empty($categoryChartLabels) || !empty($stockHistoryChartLabels)): ?>
 <script src="<?= base_url() ?>assets/vendors/chart.js/chart.umd.js"></script>
 <script>
 (function(){
@@ -1363,6 +1363,48 @@ if (typeof window.jQuery !== 'undefined') {
                             label: function(ctx){
                                 var v = ctx.parsed;
                                 return ctx.label + ': \u20B9' + parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    <?php endif; ?>
+
+    <?php if (!empty($stockHistoryChartLabels)): ?>
+    var stockHistoryTrendEl = document.getElementById('stockHistoryTrendChart');
+    if (stockHistoryTrendEl) {
+        var stockHistoryTrendCtx = stockHistoryTrendEl.getContext('2d');
+        new Chart(stockHistoryTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($stockHistoryChartLabels) ?>,
+                datasets: [
+                    {
+                        label: <?= json_encode(lang('App.dashboard.stockEntries')) ?>,
+                        data: <?= json_encode($stockHistoryChartData) ?>,
+                        backgroundColor: 'rgba(0,137,123,0.75)',
+                        borderColor: 'rgba(0,137,123,1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx){
+                                return <?= json_encode(lang('App.dashboard.stockEntries')) ?> + ': ' + parseInt(ctx.parsed.y, 10).toLocaleString('en-IN');
                             }
                         }
                     }

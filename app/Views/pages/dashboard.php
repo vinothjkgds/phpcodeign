@@ -145,6 +145,22 @@
     </div>
 </div>
 
+<!-- Stock History Chart Row -->
+<div class="row">
+    <div class="col-md-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><?= lang('App.dashboard.stockHistoryTrend') ?></h5>
+                <?php if (!empty($stockHistoryChartLabels)): ?>
+                <canvas id="stockHistoryTrendChart" height="80"></canvas>
+                <?php else: ?>
+                <p class="text-muted mt-3"><?= lang('App.dashboard.noData') ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Tables Row -->
 <div class="row">
     <div class="col-md-6 grid-margin stretch-card">
