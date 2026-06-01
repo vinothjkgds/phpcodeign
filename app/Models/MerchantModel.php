@@ -123,9 +123,7 @@ class MerchantModel extends Model
                 ? '<span class="badge badge-success">Active</span>'
                 : '<span class="badge badge-danger">Inactive</span>';
             $logoPath = $row->merchant_type === 'shop' ? ($row->shop_logo ?? null) : ($row->profile_logo ?? null);
-            $logoHtml = !empty($logoPath)
-                ? '<img src="' . base_url(ltrim($logoPath, '/')) . '" alt="' . $typeLabel . ' Logo" style="max-height:36px; max-width:36px; border-radius:50%; object-fit:cover;">'
-                : '-';
+            $logoHtml = $this->buildMerchantLogoHtml((string) ($row->merchant_name ?? ''), (string) ($logoPath ?? ''), $typeLabel);
 
             $data[] = [
                 'merchant_name' => $row->merchant_name,
@@ -291,6 +289,26 @@ class MerchantModel extends Model
 
         $day = (int) date('j', $ts);
         return $day . $this->ordinalSuffix($day) . date(' M Y g:i A', $ts);
+    }
+
+    private function buildMerchantLogoHtml(string $merchantName, string $logoPath, string $typeLabel): string
+    {
+        $trimmedLogoPath = trim($logoPath);
+        if ($trimmedLogoPath !== '') {
+            $logoUrl = base_url(ltrim($trimmedLogoPath, '/'));
+            return '<img src="' . esc($logoUrl, 'attr') . '" alt="' . esc($typeLabel . ' Logo', 'attr') . '" style="max-height:36px; max-width:36px; border-radius:50%; object-fit:cover;">';
+        }
+
+        $trimmedName = trim($merchantName);
+        if ($trimmedName === '') {
+            $initial = '?';
+        } elseif (function_exists('mb_substr') && function_exists('mb_strtoupper')) {
+            $initial = mb_strtoupper(mb_substr($trimmedName, 0, 1));
+        } else {
+            $initial = strtoupper(substr($trimmedName, 0, 1));
+        }
+
+        return '<span style="display:inline-flex;width:36px;height:36px;border-radius:50%;align-items:center;justify-content:center;background:#37474f;color:#fff;font-size:13px;font-weight:700;">' . esc($initial) . '</span>';
     }
 
     private function ordinalSuffix(int $day): string

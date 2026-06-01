@@ -29,11 +29,10 @@
                     <table id="merchantTable" class="table table-striped">
                         <thead>
                             <tr>
+                                <th>Logo</th>
                                 <th>Merchant Name</th>
                                 <th>Type</th>
-                                <th>Logo</th>
                                 <th>Phone</th>
-                                <th>Email</th>
                                 <th>Receivable</th>
                                 <th>Payable</th>
                                 <th>Status</th>

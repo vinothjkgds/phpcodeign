@@ -138,13 +138,18 @@ class Auth extends BaseController
     public function dashboard()
     {
         $shopId = (int) (session()->get('auth_shop_id') ?? 0);
+        $dashboardGeneratedAt                 = date('Y-m-d H:i:s');
         $totalOwnerPayableToMerchants        = 0.0;
         $totalOwnerReceivableFromMerchants   = 0.0;
         $totalActiveMerchants                = 0;
         $totalActiveEmployees                = 0;
         $todaysSalesAmount                   = 0.0;
+        $todaysSalesCount                    = 0;
+        $avgSaleValueToday                   = 0.0;
         $todaysCollectionsAmount             = 0.0;
         $netPosition                         = 0.0;
+        $lowStockProductsCount               = 0;
+        $outOfStockProductsCount             = 0;
         $monthlyTrendLabels                  = [];
         $monthlyTrendSales                   = [];
         $monthlyTrendPurchases               = [];
@@ -152,8 +157,6 @@ class Auth extends BaseController
         $recentTransactions                  = [];
         $categoryChartLabels                 = [];
         $categoryChartData                   = [];
-        $stockHistoryChartLabels             = [];
-        $stockHistoryChartData               = [];
 
         if ($shopId > 0) {
             $db = db_connect();
@@ -188,12 +191,14 @@ class Auth extends BaseController
 
             // --- Today's sales
             $todaysSalesRow = $db->table('merchant_ledger')
-                ->selectSum('amount')
+                ->select('COUNT(*) AS sale_count, COALESCE(SUM(amount), 0) AS sale_amount', false)
                 ->where('shop_id', $shopId)
                 ->where('entry_type', 'sale')
                 ->where('DATE(entry_date)', $today)
                 ->get()->getRow();
-            $todaysSalesAmount = (float) ($todaysSalesRow->amount ?? 0);
+            $todaysSalesAmount = (float) ($todaysSalesRow->sale_amount ?? 0);
+            $todaysSalesCount  = (int) ($todaysSalesRow->sale_count ?? 0);
+            $avgSaleValueToday = $todaysSalesCount > 0 ? ($todaysSalesAmount / $todaysSalesCount) : 0.0;
 
             // --- Today's collections
             $todaysCollRow = $db->table('merchant_ledger')
@@ -203,6 +208,19 @@ class Auth extends BaseController
                 ->where('DATE(entry_date)', $today)
                 ->get()->getRow();
             $todaysCollectionsAmount = (float) ($todaysCollRow->amount ?? 0);
+
+            // --- Inventory alert counters
+            $stockSummary = $db->table('products')
+                ->select(
+                    'SUM(CASE WHEN is_active = 1 AND current_stock <= 0 THEN 1 ELSE 0 END) AS out_of_stock_count, '
+                    . 'SUM(CASE WHEN is_active = 1 AND current_stock > 0 AND current_stock <= reorder_level THEN 1 ELSE 0 END) AS low_stock_count',
+                    false
+                )
+                ->where('shop_id', $shopId)
+                ->get()->getRow();
+
+            $outOfStockProductsCount = (int) ($stockSummary->out_of_stock_count ?? 0);
+            $lowStockProductsCount   = (int) ($stockSummary->low_stock_count ?? 0);
 
             // --- Monthly trend: last 6 months sales & purchases
             $monthlyRows = $db->query("
@@ -271,35 +289,23 @@ class Auth extends BaseController
                 $categoryChartData[]   = (float) $cr->total_amount;
             }
 
-            // --- Stock history trend (last 7 days entries count)
-            $stockHistoryRows = $db->query(" 
-                SELECT
-                    DATE(created_at) AS day_key,
-                    COUNT(*) AS total_entries
-                FROM product_stock_history
-                WHERE shop_id = ?
-                  AND DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                GROUP BY day_key
-                ORDER BY day_key ASC
-            ", [$shopId])->getResult();
-
-            foreach ($stockHistoryRows as $sr) {
-                $ts = strtotime((string) ($sr->day_key ?? ''));
-                $stockHistoryChartLabels[] = $ts ? date('d M', $ts) : '-';
-                $stockHistoryChartData[]   = (int) ($sr->total_entries ?? 0);
-            }
         }
 
         $data = [
             'body_content'                        => 'dashboard',
+            'dashboardGeneratedAt'                => $dashboardGeneratedAt,
             'totalNoOfBusiness'                   => 0,
             'totalOwnerPayableToMerchants'         => $totalOwnerPayableToMerchants,
             'totalOwnerReceivableFromMerchants'    => $totalOwnerReceivableFromMerchants,
             'totalActiveMerchants'                 => $totalActiveMerchants,
             'totalActiveEmployees'                 => $totalActiveEmployees,
             'todaysSalesAmount'                    => $todaysSalesAmount,
+            'todaysSalesCount'                     => $todaysSalesCount,
+            'avgSaleValueToday'                    => $avgSaleValueToday,
             'todaysCollectionsAmount'              => $todaysCollectionsAmount,
             'netPosition'                          => $netPosition,
+            'lowStockProductsCount'                => $lowStockProductsCount,
+            'outOfStockProductsCount'              => $outOfStockProductsCount,
             'monthlyTrendLabels'                   => $monthlyTrendLabels,
             'monthlyTrendSales'                    => $monthlyTrendSales,
             'monthlyTrendPurchases'                => $monthlyTrendPurchases,
@@ -307,8 +313,6 @@ class Auth extends BaseController
             'recentTransactions'                   => $recentTransactions,
             'categoryChartLabels'                  => $categoryChartLabels,
             'categoryChartData'                    => $categoryChartData,
-            'stockHistoryChartLabels'              => $stockHistoryChartLabels,
-            'stockHistoryChartData'                => $stockHistoryChartData,
         ];
 
         return view('index', $data);

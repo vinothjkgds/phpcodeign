@@ -59,7 +59,7 @@ class EmployeeModel extends Model
     public function getEmployeeListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' u');
-        $builder->select('u.user_id, u.reference_code, u.profile_image, u.name, u.email, u.mobileno, u.user_type, u.is_active, u.last_login_at, u.created_at');
+        $builder->select('u.user_id, u.reference_code, u.profile_image, u.name, u.email, u.mobileno, u.user_type, u.is_active, u.created_at');
         $builder->where('u.shop_id', $shopId);
 
         if (!empty($postData['search']['value'])) {
@@ -72,7 +72,7 @@ class EmployeeModel extends Model
                 ->groupEnd();
         }
 
-        $columns = ['u.profile_image', 'u.name', 'u.email', 'u.mobileno', 'u.user_type', 'u.is_active', 'u.last_login_at', 'u.created_at', 'u.user_id'];
+        $columns = ['u.profile_image', 'u.name', 'u.email', 'u.mobileno', 'u.user_type', 'u.is_active', 'u.created_at', 'u.user_id'];
         if (isset($postData['order'][0]['column'], $postData['order'][0]['dir'])) {
             $colIndex = (int) $postData['order'][0]['column'];
             $direction = strtolower((string) $postData['order'][0]['dir']) === 'asc' ? 'ASC' : 'DESC';
@@ -102,11 +102,7 @@ class EmployeeModel extends Model
                 ? '<span class="badge badge-success">Active</span>'
                 : '<span class="badge badge-danger">Inactive</span>';
 
-            $profileImage = '-';
-            if (!empty($row->profile_image)) {
-                $profileUrl = base_url(ltrim((string) $row->profile_image, '/'));
-                $profileImage = '<img src="' . esc($profileUrl, 'attr') . '" alt="Employee" style="width:40px;height:40px;object-fit:cover;border-radius:50%;" />';
-            }
+            $profileImage = $this->buildProfileAvatarHtml((string) ($row->name ?? ''), (string) ($row->profile_image ?? ''));
 
             $data[] = [
                 'profile_image' => $profileImage,
@@ -115,7 +111,6 @@ class EmployeeModel extends Model
                 'mobileno' => esc($row->mobileno ?? '-'),
                 'user_type' => ucfirst((string) $row->user_type),
                 'is_active' => $statusBadge,
-                'last_login_at' => $this->formatListDateTime($row->last_login_at ?? null),
                 'created_at' => $this->formatListDateTime($row->created_at ?? null),
                 'action' => $actionBtns,
             ];
@@ -157,6 +152,25 @@ class EmployeeModel extends Model
 
         $day = (int) date('j', $ts);
         return $day . $this->ordinalSuffix($day) . date(' M Y g:i A', $ts);
+    }
+
+    private function buildProfileAvatarHtml(string $name, string $profileImagePath): string
+    {
+        if ($profileImagePath !== '') {
+            $profileUrl = base_url(ltrim($profileImagePath, '/'));
+            return '<img src="' . esc($profileUrl, 'attr') . '" alt="Employee" style="width:40px;height:40px;object-fit:cover;border-radius:50%;" />';
+        }
+
+        $trimmedName = trim($name);
+        if ($trimmedName === '') {
+            $initial = '?';
+        } elseif (function_exists('mb_substr') && function_exists('mb_strtoupper')) {
+            $initial = mb_strtoupper(mb_substr($trimmedName, 0, 1));
+        } else {
+            $initial = strtoupper(substr($trimmedName, 0, 1));
+        }
+
+        return '<span style="display:inline-flex;width:40px;height:40px;border-radius:50%;align-items:center;justify-content:center;background:#455a64;color:#fff;font-size:14px;font-weight:700;">' . esc($initial) . '</span>';
     }
 
     private function ordinalSuffix(int $day): string

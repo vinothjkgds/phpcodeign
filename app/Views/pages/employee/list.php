@@ -23,7 +23,6 @@
                                 <th>Mobile</th>
                                 <th>Role</th>
                                 <th>Status</th>
-                                <th>Last Login</th>
                                 <th>Created</th>
                                 <th>Action</th>
                             </tr>

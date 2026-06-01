@@ -253,20 +253,19 @@ $(document).ready(function(){
             type: "POST"
         },
         columns: [
+            { data: "logo" },
             { data: "merchant_name" },
             { data: "merchant_type" },
-            { data: "logo" },
             { data: "phone" },
-            { data: "email" },
             { data: "receivable_amount" },
             { data: "payable_amount" },
             { data: "is_active" },
             { data: "created_at" },
             { data: "action" }
         ],
-        order: [[8,"desc"]],
+        order: [[7,"desc"]],
         columnDefs: [
-            { orderable: false, targets: [2, 9] } // Disable sorting on logo and action columns
+            { orderable: false, targets: [0, 8] } // Disable sorting on logo and action columns
         ]
     });
 
@@ -1278,7 +1277,74 @@ if (typeof window.jQuery !== 'undefined') {
 <?php endif; ?>
 
 <?php if (trim(strtolower(current_controller())) == 'auth' && trim(strtolower(current_method())) == 'dashboard'): ?>
-<?php if (!empty($monthlyTrendLabels) || !empty($categoryChartLabels) || !empty($stockHistoryChartLabels)): ?>
+<script>
+(function() {
+    var controlsRoot = document.getElementById('dashboardRealtimeControls');
+    if (!controlsRoot) {
+        return;
+    }
+
+    var updatedEl = document.getElementById('dashboardLastUpdated');
+    var autoRefreshEl = document.getElementById('dashboardAutoRefresh');
+    var refreshNowEl = document.getElementById('dashboardRefreshNow');
+    var autoRefreshTimer = null;
+
+    var generatedAtRaw = controlsRoot.getAttribute('data-generated-at') || '';
+    var generatedAt = generatedAtRaw ? new Date(generatedAtRaw.replace(' ', 'T')) : new Date();
+    if (Number.isNaN(generatedAt.getTime())) {
+        generatedAt = new Date();
+    }
+
+    function formatClock(dateObj) {
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function updateLastUpdatedLabel() {
+        if (!updatedEl) {
+            return;
+        }
+
+        var nowMs = Date.now();
+        var diffSeconds = Math.max(0, Math.floor((nowMs - generatedAt.getTime()) / 1000));
+        var prefix = controlsRoot.getAttribute('data-last-updated-label') || 'Last updated:';
+        updatedEl.textContent = prefix + ' ' + formatClock(generatedAt) + ' (' + diffSeconds + 's ago)';
+    }
+
+    function resetAutoRefreshTimer() {
+        if (autoRefreshTimer) {
+            clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+
+        if (!autoRefreshEl) {
+            return;
+        }
+
+        var intervalSeconds = parseInt(autoRefreshEl.value, 10) || 0;
+        if (intervalSeconds > 0) {
+            autoRefreshTimer = setInterval(function() {
+                window.location.reload();
+            }, intervalSeconds * 1000);
+        }
+    }
+
+    if (autoRefreshEl) {
+        autoRefreshEl.addEventListener('change', resetAutoRefreshTimer);
+    }
+
+    if (refreshNowEl) {
+        refreshNowEl.addEventListener('click', function() {
+            window.location.reload();
+        });
+    }
+
+    updateLastUpdatedLabel();
+    setInterval(updateLastUpdatedLabel, 1000);
+    resetAutoRefreshTimer();
+}());
+</script>
+
+<?php if (!empty($monthlyTrendLabels) || !empty($categoryChartLabels)): ?>
 <script src="<?= base_url() ?>assets/vendors/chart.js/chart.umd.js"></script>
 <script>
 (function(){
@@ -1371,48 +1437,6 @@ if (typeof window.jQuery !== 'undefined') {
         });
     }
     <?php endif; ?>
-
-    <?php if (!empty($stockHistoryChartLabels)): ?>
-    var stockHistoryTrendEl = document.getElementById('stockHistoryTrendChart');
-    if (stockHistoryTrendEl) {
-        var stockHistoryTrendCtx = stockHistoryTrendEl.getContext('2d');
-        new Chart(stockHistoryTrendCtx, {
-            type: 'bar',
-            data: {
-                labels: <?= json_encode($stockHistoryChartLabels) ?>,
-                datasets: [
-                    {
-                        label: <?= json_encode(lang('App.dashboard.stockEntries')) ?>,
-                        data: <?= json_encode($stockHistoryChartData) ?>,
-                        backgroundColor: 'rgba(0,137,123,0.75)',
-                        borderColor: 'rgba(0,137,123,1)',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx){
-                                return <?= json_encode(lang('App.dashboard.stockEntries')) ?> + ': ' + parseInt(ctx.parsed.y, 10).toLocaleString('en-IN');
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-    <?php endif; ?>
 }());
 </script>
 <?php endif; ?>
@@ -1436,13 +1460,12 @@ $(document).ready(function(){
             { data: 'mobileno' },
             { data: 'user_type' },
             { data: 'is_active' },
-            { data: 'last_login_at' },
             { data: 'created_at' },
             { data: 'action' }
         ],
-        order: [[7, 'desc']],
+        order: [[6, 'desc']],
         columnDefs: [
-            { orderable: false, targets: [0, 8] }
+            { orderable: false, targets: [0, 7] }
         ]
     });
 

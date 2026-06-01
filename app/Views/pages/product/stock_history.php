@@ -81,10 +81,6 @@
                     </div>
                 </div>
             </div>
-            <div class="alert alert-primary mt-2 mb-0 py-2" role="alert">
-                Example: if stock unit is gm, 2 kilogram becomes 2000 gm and -500 gram reduces by 500 gm.<br>
-                Each manual adjustment is saved in stock history.
-            </div>
         </form>
         <div id="shAddStockMessage" class="mt-3" style="display:none;"></div>
     </div>
