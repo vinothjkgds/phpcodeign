@@ -99,35 +99,45 @@
 
         <div class="row mb-3">
             <div class="col-md-3">
-                <label for="filter_product_id">Product</label>
-                <select id="filter_product_id" class="form-select rounded-0">
-                    <option value="">All Products</option>
-                    <?php foreach (($products ?? []) as $product): ?>
-                        <option value="<?= (int) ($product['product_id'] ?? 0) ?>"><?= esc((string) ($product['product_name'] ?? '')) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="form-group">
+                    <label for="filter_product_id">Product</label>
+                    <select id="filter_product_id" class="form-select rounded-0">
+                        <option value="">All Products</option>
+                        <?php foreach (($products ?? []) as $product): ?>
+                            <option value="<?= (int) ($product['product_id'] ?? 0) ?>"><?= esc((string) ($product['product_name'] ?? '')) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
             <div class="col-md-3">
-                <label for="filter_movement_type">Movement Type</label>
-                <select id="filter_movement_type" class="form-select rounded-0">
-                    <option value="">All Types</option>
-                    <option value="opening">Opening</option>
-                    <option value="sale">Sale</option>
-                    <option value="purchase">Purchase</option>
-                    <option value="adjustment">Adjustment</option>
-                </select>
+                <div class="form-group">
+                    <label for="filter_movement_type">Movement Type</label>
+                    <select id="filter_movement_type" class="form-select rounded-0">
+                        <option value="">All Types</option>
+                        <option value="opening">Opening</option>
+                        <option value="sale">Sale</option>
+                        <option value="purchase">Purchase</option>
+                        <option value="adjustment">Adjustment</option>
+                    </select>
+                </div>
             </div>
             <div class="col-md-2">
-                <label for="filter_from_date">From Date</label>
-                <input type="date" id="filter_from_date" class="form-control">
+                <div class="form-group">
+                    <label for="filter_from_date">From Date</label>
+                    <input type="date" id="filter_from_date" class="form-control">
+                </div>
             </div>
             <div class="col-md-2">
-                <label for="filter_to_date">To Date</label>
-                <input type="date" id="filter_to_date" class="form-control">
+                <div class="form-group">
+                    <label for="filter_to_date">To Date</label>
+                    <input type="date" id="filter_to_date" class="form-control">
+                </div>
             </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="button" id="applyStockHistoryFilter" class="btn btn-primary me-2">Apply</button>
-                <button type="button" id="resetStockHistoryFilter" class="btn btn-light">Reset</button>
+                <div class="form-group w-100 d-flex">
+                    <button type="button" id="applyStockHistoryFilter" class="btn btn-primary me-2">Apply</button>
+                    <button type="button" id="resetStockHistoryFilter" class="btn btn-light">Reset</button>
+                </div>
             </div>
         </div>
 
