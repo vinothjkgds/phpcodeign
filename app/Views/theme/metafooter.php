@@ -467,6 +467,49 @@ $(document).ready(function(){
         });
     });
 
+    var stockHistoryNotesManuallyEdited = false;
+
+    function buildStockHistoryNote() {
+        var quantity = parseFloat($('#sh_quantity').val() || 0);
+        var unitText = ($('#sh_unit option:selected').text() || '').trim();
+
+        if (isNaN(quantity) || quantity === 0 || !unitText) {
+            return '';
+        }
+
+        var actionText = quantity > 0 ? 'add' : 'reduce';
+        var quantityText = Math.abs(quantity).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+        return 'Manual stock ' + actionText + ': ' + quantityText + ' ' + unitText;
+    }
+
+    function syncStockHistoryNote(forceUpdate) {
+        var $notes = $('#sh_notes');
+        if (!$notes.length) {
+            return;
+        }
+
+        if (!forceUpdate && stockHistoryNotesManuallyEdited) {
+            return;
+        }
+
+        $notes.val(buildStockHistoryNote());
+    }
+
+    $(document).on('input change', '#sh_quantity, #sh_unit', function() {
+        syncStockHistoryNote(false);
+    });
+
+    $(document).on('input', '#sh_notes', function() {
+        var currentValue = ($(this).val() || '').trim();
+        if (currentValue === '') {
+            stockHistoryNotesManuallyEdited = false;
+            syncStockHistoryNote(true);
+            return;
+        }
+
+        stockHistoryNotesManuallyEdited = true;
+    });
+
     // Add Stock — form submit
     $(document).on('submit', '#stockHistoryAddStockForm', function(e) {
         e.preventDefault();
@@ -509,6 +552,8 @@ $(document).ready(function(){
             $btn.prop('disabled', false);
         });
     });
+
+    syncStockHistoryNote(true);
 });
 </script>
 <?php endif; ?>
@@ -560,6 +605,51 @@ $(document).ready(function(){
             }
         });
     }
+
+    var productViewNotesManuallyEdited = false;
+
+    function buildProductViewAdjustmentNote() {
+        var quantity = parseFloat($('#adjustment_quantity').val() || 0);
+        var unitText = ($('#adjustment_unit option:selected').text() || '').trim();
+
+        if (isNaN(quantity) || quantity === 0 || !unitText) {
+            return '';
+        }
+
+        var actionText = quantity > 0 ? 'add' : 'reduce';
+        var quantityText = Math.abs(quantity).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+        return 'Manual stock ' + actionText + ': ' + quantityText + ' ' + unitText;
+    }
+
+    function syncProductViewAdjustmentNote(forceUpdate) {
+        var $notes = $('#adjustment_notes');
+        if (!$notes.length) {
+            return;
+        }
+
+        if (!forceUpdate && productViewNotesManuallyEdited) {
+            return;
+        }
+
+        $notes.val(buildProductViewAdjustmentNote());
+    }
+
+    $(document).on('input change', '#adjustment_quantity, #adjustment_unit', function() {
+        syncProductViewAdjustmentNote(false);
+    });
+
+    $(document).on('input', '#adjustment_notes', function() {
+        var currentValue = ($(this).val() || '').trim();
+        if (currentValue === '') {
+            productViewNotesManuallyEdited = false;
+            syncProductViewAdjustmentNote(true);
+            return;
+        }
+
+        productViewNotesManuallyEdited = true;
+    });
+
+    syncProductViewAdjustmentNote(true);
 
     $(document).on('submit', '#adjustProductStockForm', function(e) {
         e.preventDefault();

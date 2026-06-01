@@ -5,7 +5,7 @@
 ?>
 
 <style>
-#stockHistoryAddStockForm select.form-control {
+#stockHistoryAddStockForm select.form-select {
     height: calc(2.625rem + 2px);
 }
 #sh_existing_stock {
@@ -24,52 +24,67 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">Add Stock (Manual)</h5>
+        <h5 class="card-title">Adjust Stock (Manual)</h5>
         <form id="stockHistoryAddStockForm">
             <div class="row g-2">
                 <div class="col-md-3">
-                    <label for="sh_product_id">Product</label>
-                    <select class="form-control rounded-0" id="sh_product_id" name="sh_product_id" required>
-                        <option value="">-- Select Product --</option>
-                        <?php foreach (($products ?? []) as $product): ?>
-                            <option value="<?= (int) ($product['product_id'] ?? 0) ?>" data-unit="<?= esc((string) ($product['stock_unit'] ?? 'gram')) ?>">
-                                <?= esc((string) ($product['product_name'] ?? '')) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="form-group">
+                        <label for="sh_product_id">Product</label>
+                        <select class="form-select rounded-0" id="sh_product_id" name="sh_product_id" required>
+                            <option value="">-- Select Product --</option>
+                            <?php foreach (($products ?? []) as $product): ?>
+                                <option value="<?= (int) ($product['product_id'] ?? 0) ?>" data-unit="<?= esc((string) ($product['stock_unit'] ?? 'gram')) ?>">
+                                    <?= esc((string) ($product['product_name'] ?? '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label class="d-block">Existing Stock</label>
-                    <div id="sh_existing_stock">--</div>
+                    <div class="form-group">
+                        <label class="d-block">Existing Stock</label>
+                        <div id="sh_existing_stock">--</div>
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label for="sh_quantity">Add Quantity</label>
-                    <input type="number" step="0.001" min="0.001" class="form-control" id="sh_quantity" name="sh_quantity" required placeholder="Enter quantity">
+                    <div class="form-group">
+                        <label for="sh_quantity">Adjust Quantity (+/-)</label>
+                        <input type="number" step="0.001" class="form-control" id="sh_quantity" name="sh_quantity" required placeholder="Use + to add, - to reduce">
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label for="sh_unit">Input Unit</label>
-                    <select class="form-control" id="sh_unit" name="sh_unit" required>
-                        <option value="gram">Gram (gm)</option>
-                        <option value="kilogram">Kilogram (kg)</option>
-                        <option value="milligram">Milligram (mg)</option>
-                        <option value="tola">Tola</option>
-                        <option value="ounce">Ounce (oz)</option>
-                        <option value="piece">Piece (pc)</option>
-                        <option value="liter">Liter (ltr)</option>
-                        <option value="other">Other</option>
-                    </select>
-                    <small class="form-text text-muted" id="sh_unit_hint"></small>
+                    <div class="form-group">
+                        <label for="sh_unit">Input Unit</label>
+                        <select class="form-select rounded-0" id="sh_unit" name="sh_unit" required>
+                            <option value="gram">Gram (gm)</option>
+                            <option value="kilogram">Kilogram (kg)</option>
+                            <option value="milligram">Milligram (mg)</option>
+                            <option value="tola">Tola</option>
+                            <option value="ounce">Ounce (oz)</option>
+                            <option value="piece">Piece (pc)</option>
+                            <option value="liter">Liter (ltr)</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <small class="form-text text-muted" id="sh_unit_hint"></small>
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label for="sh_notes">Notes</label>
-                    <input type="text" maxlength="500" class="form-control" id="sh_notes" name="sh_notes" placeholder="Reason">
+                    <div class="form-group">
+                        <label for="sh_notes">Notes</label>
+                        <input type="text" maxlength="500" class="form-control" id="sh_notes" name="sh_notes" placeholder="Reason">
+                    </div>
                 </div>
                 <div class="col-md-1">
-                    <label class="d-block">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                    <div class="form-group">
+                        <label class="d-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </div>
                 </div>
             </div>
-            <small class="form-text text-muted mt-2">Example: if stock unit is gm, 2 kilogram becomes 2000 gm. Each add is saved in stock history.</small>
+            <div class="alert alert-primary mt-2 mb-0 py-2" role="alert">
+                Example: if stock unit is gm, 2 kilogram becomes 2000 gm and -500 gram reduces by 500 gm.<br>
+                Each manual adjustment is saved in stock history.
+            </div>
         </form>
         <div id="shAddStockMessage" class="mt-3" style="display:none;"></div>
     </div>

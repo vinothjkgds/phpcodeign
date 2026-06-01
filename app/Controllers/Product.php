@@ -308,8 +308,8 @@ class Product extends BaseController
             $productUnit = strtolower(trim((string) ($product->stock_unit ?? '')));
             $notes = trim((string) ($this->request->getPost('adjustment_notes') ?? ''));
 
-            if ($adjustmentQty <= 0) {
-                return $this->response->setStatusCode(422)->setJSON(['status' => false, 'message' => 'Add quantity must be greater than zero']);
+            if ($adjustmentQty == 0.0) {
+                return $this->response->setStatusCode(422)->setJSON(['status' => false, 'message' => 'Adjustment quantity cannot be zero']);
             }
 
             $convertedAdjustmentQty = $this->convertStockQuantity($adjustmentQty, $adjustmentUnit, $productUnit);
@@ -346,9 +346,11 @@ class Product extends BaseController
                 ]);
             }
 
+            $actionText = $convertedAdjustmentQty > 0 ? 'added' : 'reduced';
+
             return $this->response->setJSON([
                 'status' => true,
-                'message' => 'Stock added successfully',
+                'message' => 'Stock ' . $actionText . ' successfully',
                 'product_id' => (int) $productId,
                 'old_stock' => $currentStock,
                 'new_stock' => $newStock,

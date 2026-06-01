@@ -7,7 +7,7 @@ $productStockUnit = strtolower(trim((string) ($productInfo->stock_unit ?? 'gram'
 ?>
 
 <style>
-#adjustProductStockForm .stock-unit-select {
+#adjustProductStockForm .form-select.stock-unit-select {
     height: calc(2.625rem + 2px);
 }
 </style>
@@ -53,41 +53,51 @@ $productStockUnit = strtolower(trim((string) ($productInfo->stock_unit ?? 'gram'
 
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">Add Stock (Manual)</h5>
+        <h5 class="card-title">Adjust Stock (Manual)</h5>
         <p class="mb-3 text-muted">
             Existing Stock: <strong><?= esc(number_format((float) ($productInfo->current_stock ?? 0), 3)) . ' ' . esc((string) ($stockChartUnit ?? '')) ?></strong>
         </p>
         <form id="adjustProductStockForm" method="POST" action="<?= site_url('product/adjustStock/' . (int) ($productInfo->product_id ?? 0)) ?>">
             <div class="row">
                 <div class="col-md-4">
-                    <label for="adjustment_quantity">Add Stock</label>
-                    <input type="number" step="0.001" min="0.001" class="form-control" id="adjustment_quantity" name="adjustment_quantity" required placeholder="Enter stock to add">
+                    <div class="form-group">
+                        <label for="adjustment_quantity">Adjust Quantity (+/-)</label>
+                        <input type="number" step="0.001" class="form-control" id="adjustment_quantity" name="adjustment_quantity" required placeholder="Use + to add, - to reduce">
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label for="adjustment_unit">Input Unit</label>
-                    <select class="form-control stock-unit-select" id="adjustment_unit" name="adjustment_unit" required>
-                        <option value="gram" <?= $productStockUnit === 'gram' ? 'selected' : '' ?>>Gram (gm)</option>
-                        <option value="kilogram" <?= $productStockUnit === 'kilogram' ? 'selected' : '' ?>>Kilogram (kg)</option>
-                        <option value="milligram" <?= $productStockUnit === 'milligram' ? 'selected' : '' ?>>Milligram (mg)</option>
-                        <option value="tola" <?= $productStockUnit === 'tola' ? 'selected' : '' ?>>Tola</option>
-                        <option value="ounce" <?= $productStockUnit === 'ounce' ? 'selected' : '' ?>>Ounce (oz)</option>
-                        <option value="piece" <?= $productStockUnit === 'piece' ? 'selected' : '' ?>>Piece (pc)</option>
-                        <option value="liter" <?= $productStockUnit === 'liter' ? 'selected' : '' ?>>Liter (ltr)</option>
-                        <option value="other" <?= $productStockUnit === 'other' ? 'selected' : '' ?>>Other</option>
-                    </select>
-                    <small class="form-text text-muted">Product stock unit: <?= esc((string) ($stockChartUnit ?? '')) ?></small>
+                    <div class="form-group">
+                        <label for="adjustment_unit">Input Unit</label>
+                        <select class="form-select rounded-0 stock-unit-select" id="adjustment_unit" name="adjustment_unit" required>
+                            <option value="gram" <?= $productStockUnit === 'gram' ? 'selected' : '' ?>>Gram (gm)</option>
+                            <option value="kilogram" <?= $productStockUnit === 'kilogram' ? 'selected' : '' ?>>Kilogram (kg)</option>
+                            <option value="milligram" <?= $productStockUnit === 'milligram' ? 'selected' : '' ?>>Milligram (mg)</option>
+                            <option value="tola" <?= $productStockUnit === 'tola' ? 'selected' : '' ?>>Tola</option>
+                            <option value="ounce" <?= $productStockUnit === 'ounce' ? 'selected' : '' ?>>Ounce (oz)</option>
+                            <option value="piece" <?= $productStockUnit === 'piece' ? 'selected' : '' ?>>Piece (pc)</option>
+                            <option value="liter" <?= $productStockUnit === 'liter' ? 'selected' : '' ?>>Liter (ltr)</option>
+                            <option value="other" <?= $productStockUnit === 'other' ? 'selected' : '' ?>>Other</option>
+                        </select>
+                        <small class="form-text text-muted">Product stock unit: <?= esc((string) ($stockChartUnit ?? '')) ?></small>
+                    </div>
                 </div>
                 <div class="col-md-4">
-                    <label for="adjustment_notes">Notes</label>
-                    <input type="text" maxlength="500" class="form-control" id="adjustment_notes" name="adjustment_notes" placeholder="Reason for adjustment">
+                    <div class="form-group">
+                        <label for="adjustment_notes">Notes</label>
+                        <input type="text" maxlength="500" class="form-control" id="adjustment_notes" name="adjustment_notes" placeholder="Reason for adjustment">
+                    </div>
                 </div>
                 <div class="col-md-2">
-                    <label class="d-block">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                    <div class="form-group">
+                        <label class="d-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </div>
                 </div>
             </div>
-            <small class="form-text text-muted mt-2">Example: if stock unit is gm, 2 kilogram becomes 2000 gm.</small>
-            <small class="form-text text-muted d-block">Each add is saved in stock history.</small>
+            <div class="alert alert-primary mt-2 mb-0 py-2" role="alert">
+                Example: if stock unit is gm, 2 kilogram becomes 2000 gm and -500 gram reduces by 500 gm.<br>
+                Each manual adjustment is saved in stock history.
+            </div>
         </form>
         <div id="adjustStockMessage" class="mt-3" style="display: none;"></div>
     </div>
