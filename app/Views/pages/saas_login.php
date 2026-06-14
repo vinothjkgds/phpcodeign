@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title><?= SITE_NAME ?></title>
+  <title><?= SITE_NAME ?> - SaaS Admin</title>
   <link rel="stylesheet" href="<?= base_url() ?>assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="<?= base_url() ?>assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="<?= base_url() ?>assets/css/vertical-layout-light/style.css">
@@ -21,23 +21,23 @@
                 <div class="brand-logo">
                   <img src="<?= base_url() ?>assets/images/logo-black.svg" alt="logo">
                 </div>
-                <h4>Welcome back!</h4>
-                <h6 class="fw-light">Happy to see you again!</h6>
+                <h4>SaaS Admin Login</h4>
+                <h6 class="fw-light">Manage platform and onboarding</h6>
               </div>
 
               <!-- Display Validation Errors -->
               <?php if(isset($validation)): ?>
-                  <div class="alert alert-danger 1"><?= $validation->listErrors() ?></div>
+                  <div class="alert alert-danger"><?= $validation->listErrors() ?></div>
               <?php endif; ?>
               <?php if(isset($error)): ?>
-                  <div class="alert alert-danger 2"><?= $error ?></div>
+                  <div class="alert alert-danger"><?= $error ?></div>
               <?php endif; ?>
-              <div id="jQueryValidationError"> </div>
+              <div id="saasLoginError"></div>
 
-              <form id="authLoginForm" class="pt-3" method="post" action="<?= base_url('/login') ?>">
+              <form id="saasLoginForm" class="pt-3" method="post" action="<?= base_url('/saas/login') ?>">
                 <?= csrf_field() ?>
                 <div class="form-group">
-                  <label for="authEmail">Email</label>
+                  <label for="saasEmail">Email</label>
                   <div class="input-group">
                     <div class="input-group-prepend bg-transparent">
                       <span class="input-group-text bg-transparent border-right-0">
@@ -45,12 +45,12 @@
                       </span>
                     </div>
                     <input type="email" class="form-control form-control-lg border-left-0" 
-                           id="authEmail" name="email" placeholder="Email" value="<?= set_value('email') ?>" required>
+                           id="saasEmail" name="email" placeholder="Email" value="<?= set_value('email') ?>" required>
                   </div>
                 </div>
 
                 <div class="form-group">
-                  <label for="authPassword">Password</label>
+                  <label for="saasPassword">Password</label>
                   <div class="input-group">
                     <div class="input-group-prepend bg-transparent">
                       <span class="input-group-text bg-transparent border-right-0">
@@ -58,24 +58,17 @@
                       </span>
                     </div>
                     <input type="password" class="form-control form-control-lg border-left-0" 
-                           id="authPassword" name="password" placeholder="Password" required>                        
+                           id="saasPassword" name="password" placeholder="Password" required>                        
                   </div>
                 </div>
 
-                <div class="my-2 d-flex justify-content-between align-items-center">
-                  <div class="form-check">
-                    <label class="form-check-label text-muted">
-                      <input type="checkbox" class="form-check-input" name="remember">
-                      Keep me signed in
-                    </label>
-                  </div>
-                  <a href="<?= base_url('cms/forgotpassword') ?>" class="auth-link text-black">Forgot password?</a>
-                </div>
                 <div class="my-3 d-grid gap-2">
                   <button type="submit" id="submitBtn" class="btn btn-primary btn-lg fw-medium auth-form-btn">LOGIN</button>
                 </div>
 
-                
+                <div class="mt-3 text-muted small text-center">
+                  Demo: admin@saas.local / admin123
+                </div>
               </form>
             </div>
           </div>
@@ -98,64 +91,50 @@
 
   <!-- jQuery Validation JS -->
   <script src="<?= base_url() ?>assets/vendors/jquery-validation/jquery.validate.min.js"></script>
-  <script type="text/javascript">
+  <script>
   (function($){
       'use strict';
       $(function(){
-          // Initialize form validation
-          $("#authLoginForm").validate({
+          $('#saasLoginForm').validate({
               rules: {
-                  email: { required:true, email:true },
-                  password: "required"
+                  email: { required: true, email: true },
+                  password: { required: true }
               },
               messages: {
-                  email: "Please Enter a valid email address",
-                  password: "Please Enter Password",
-              },
-              errorPlacement: function(label, element){
-                  label.addClass('mt-2 text-danger w-100');
-                  label.insertAfter(element);
-              },
-              highlight: function(element){
-                  $(element).parent().addClass('has-danger');
-                  $(element).addClass('form-control-danger');
+                  email: { required: 'Email is required', email: 'Please enter a valid email' },
+                  password: { required: 'Password is required' }
               },
               submitHandler: function(form){
-                  // Disable button to prevent multiple submissions
-                  $('#submitBtn').attr('disabled', true).text('Logging in...');
-                  $('#jQueryValidationError').html('');
-                  let formData = new FormData(form);
-
-                  // AJAX form submission
+                  $('#submitBtn').prop('disabled', true).text('Logging in...');
+                  $('#saasLoginError').html('');
                   $.ajax({
                       url: $(form).attr('action'),
                       type: 'POST',
-                      data: formData,
+                      data: new FormData(form),
                       processData: false,
                       contentType: false,
-                        dataType: 'json',
+                    dataType: 'json',
                       success: function(response){
-                          if(response && response.status && response.redirect){
+                      if (response && response.status && response.redirect) {
                               window.location.href = response.redirect;
-                          } else {
-                            let message = (response && (response.message || response.error)) ? (response.message || response.error) : 'Login failed';
-                            $("#jQueryValidationError").html('<div class="alert alert-danger">' + message + '</div>');
-                            $('#submitBtn').attr('disabled', false).text('LOGIN');
+                              return;
                           }
+                      var message = (response && (response.message || response.error)) ? (response.message || response.error) : 'Login failed';
+                      $('#saasLoginError').html('<div class="alert alert-danger mt-3">' + message + '</div>');
+                          $('#submitBtn').prop('disabled', false).text('LOGIN');
                       },
                       error: function(xhr){
-                          let resp = xhr.responseJSON || {};
-                          let message = resp.message || resp.error || ("Something went wrong! Status: " + xhr.status);
-                          $("#jQueryValidationError").html('<div class="alert alert-danger">' + message + '</div>');
-                          $('#submitBtn').attr('disabled', false).text('LOGIN');
+                          var resp = xhr.responseJSON || {};
+                      var message = resp.message || resp.error || 'Invalid credentials';
+                      $('#saasLoginError').html('<div class="alert alert-danger mt-3">' + message + '</div>');
+                          $('#submitBtn').prop('disabled', false).text('LOGIN');
                       }
                   });
-                  return false; // Prevent default form submission
+                  return false;
               }
           });
       });
   })(jQuery);
   </script>
-
 </body>
 </html>

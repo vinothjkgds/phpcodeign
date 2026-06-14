@@ -292,23 +292,7 @@ class Employee extends BaseController
 
     private function getCurrentShopId(): ?int
     {
-        $shopId = session()->get('auth_shop_id');
-        if (!empty($shopId)) {
-            return (int) $shopId;
-        }
-
-        $referenceCode = (string) session()->get('auth_reference');
-        if ($referenceCode === '') {
-            return null;
-        }
-
-        $currentEmployee = $this->employeeModel->getEmployeeByRefCode($referenceCode);
-        if (!$currentEmployee || empty($currentEmployee->shop_id)) {
-            return null;
-        }
-
-        session()->set('auth_shop_id', (int) $currentEmployee->shop_id);
-        return (int) $currentEmployee->shop_id;
+        return $this->resolveAuthenticatedShopId();
     }
 
     private function storeEmployeeImage(UploadedFile $file, string $directoryType): string

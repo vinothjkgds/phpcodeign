@@ -14,6 +14,8 @@ if ($authProfileImage !== '') {
         $profileImageUrl = base_url(ltrim($authProfileImage, '/'));
     }
 }
+
+$logoutUrl = session()->get('auth_usertype') === 'saas' ? base_url('saas/logout') : base_url('logout');
 ?>
 
 <nav class="navbar col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
@@ -153,7 +155,7 @@ if ($authProfileImage !== '') {
                 <i class="mdi mdi-settings text-primary"></i>
                 <?= lang('App.common.settings') ?>
                 </a>
-                <a class="dropdown-item" href="<?= base_url('logout') ?>">
+                <a class="dropdown-item" href="<?= $logoutUrl ?>">
                 <i class="mdi mdi-logout text-primary"></i>
                 <?= lang('App.common.logout') ?>
                 </a>

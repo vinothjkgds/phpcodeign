@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 class EmployeeModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'users';
     protected $primaryKey = 'user_id';
     protected $protectFields = false;
@@ -61,6 +64,7 @@ class EmployeeModel extends Model
         $builder = $this->db->table($this->table . ' u');
         $builder->select('u.user_id, u.reference_code, u.profile_image, u.name, u.email, u.mobileno, u.user_type, u.is_active, u.created_at');
         $builder->where('u.shop_id', $shopId);
+        $builder->where('u.is_active', true);
 
         if (!empty($postData['search']['value'])) {
             $search = trim((string) $postData['search']['value']);
@@ -116,10 +120,11 @@ class EmployeeModel extends Model
             ];
         }
 
-        $total = $this->db->table($this->table)->where('shop_id', $shopId)->countAllResults();
+        $total = $this->db->table($this->table)->where('shop_id', $shopId)->where('is_active', true)->countAllResults();
 
         $builderCount = $this->db->table($this->table . ' u');
         $builderCount->where('u.shop_id', $shopId);
+        $builderCount->where('u.is_active', true);
         if (!empty($postData['search']['value'])) {
             $search = trim((string) $postData['search']['value']);
             $builderCount->groupStart()

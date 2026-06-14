@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 /**
@@ -18,6 +19,8 @@ use CodeIgniter\Model;
  */
 class ProductStockModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'products';
     protected $primaryKey = 'product_id';
     protected $useAutoIncrement = true;

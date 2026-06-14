@@ -11,9 +11,25 @@ $routes->get('/', 'Auth::login');
 $routes->get('/login', 'Auth::login');
 $routes->post('/login', 'Auth::login');
 $routes->get('/logout', 'Auth::logout');
+
+// SaaS control-plane auth
+$routes->get('/saas/login', 'SaasAuth::login');
+$routes->post('/saas/login', 'SaasAuth::login');
+$routes->get('/saas/logout', 'SaasAuth::logout');
+
+// SaaS control-plane
+$routes->group('saas', ['filter' => 'saasauth'], function($routes) {
+    $routes->get('dashboard', 'SaasAuth::dashboard');
+    $routes->get('onboarding', 'SaasOnboarding::index');
+    $routes->get('onboarding/add', 'SaasOnboarding::add');
+    $routes->post('onboarding/save', 'SaasOnboarding::save');
+    $routes->post('onboarding/approve/(:segment)', 'SaasOnboarding::approve/$1');
+    $routes->post('onboarding/reject/(:segment)', 'SaasOnboarding::reject/$1');
+});
+
 $routes->get('lang/(:segment)', 'Auth::setLanguage/$1');
 $routes->get('dashboard', 'Auth::dashboard', ['filter' => 'auth']);
-$routes->get('cms/(:any)', 'Cms::$1');
+$routes->get('cms/(:any)', 'Cms::$1', ['filter' => 'auth']);
 
 //Merchant
 $routes->group('merchant', ['filter' => 'auth'], function($routes) {
@@ -54,6 +70,17 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
     $routes->post('getStockHistoryListJson', 'Product::getStockHistoryListJson');
     $routes->get('getProductInfo/(:num)', 'Product::getProductInfo/$1');
     $routes->post('delete/(:segment)', 'Product::delete/$1');
+});
+
+//Category
+$routes->group('category', ['filter' => 'auth'], function($routes) {
+    $routes->get('', 'Category::index');
+    $routes->get('add', 'Category::add');
+    $routes->get('edit/(:segment)', 'Category::edit/$1');
+    $routes->post('save', 'Category::save');
+    $routes->post('save/(:segment)', 'Category::save/$1');
+    $routes->post('getCategoryListJson', 'Category::getCategoryListJson');
+    $routes->post('delete/(:segment)', 'Category::delete/$1');
 });
 
 //Shop

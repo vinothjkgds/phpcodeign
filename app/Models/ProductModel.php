@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 class ProductModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'products';
     protected $primaryKey = 'product_id';
     protected $protectFields = false;
@@ -51,6 +54,7 @@ class ProductModel extends Model
         $builder = $this->db->table($this->table . ' p');
         $builder->select('p.product_id, p.product_name, p.product_image, p.category, p.current_stock, p.stock_unit, p.reorder_level, p.is_active, p.created_at');
         $builder->where('p.shop_id', $shopId);
+        $builder->where('p.is_active', true);
 
         if (!empty($postData['search']['value'])) {
             $search = trim((string) $postData['search']['value']);
@@ -114,10 +118,11 @@ class ProductModel extends Model
             ];
         }
 
-        $total = $this->db->table($this->table)->where('shop_id', $shopId)->countAllResults();
+        $total = $this->db->table($this->table)->where('shop_id', $shopId)->where('is_active', true)->countAllResults();
 
         $builderCount = $this->db->table($this->table . ' p');
         $builderCount->where('p.shop_id', $shopId);
+        $builderCount->where('p.is_active', true);
         if (!empty($postData['search']['value'])) {
             $search = trim((string) $postData['search']['value']);
             $builderCount->groupStart()

@@ -5,14 +5,37 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS shop_onboarding;
+DROP TABLE IF EXISTS saas_users;
 DROP TABLE IF EXISTS product_stock_history;
 DROP TABLE IF EXISTS merchant_ledger;
 DROP TABLE IF EXISTS merchants;
+DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS shops;
 DROP TABLE IF EXISTS products;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- =============================================
+-- SAAS USERS (Control-plane users)
+-- =============================================
+CREATE TABLE saas_users (
+    saas_user_id INT AUTO_INCREMENT PRIMARY KEY,
+    reference_code CHAR(36) NOT NULL UNIQUE DEFAULT (UUID()),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('super_admin','onboarding_admin','support') NOT NULL DEFAULT 'onboarding_admin',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login_at DATETIME NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO saas_users (name, email, password_hash, role, is_active)
+VALUES
+('SaaS Admin', 'admin@saas.local', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', 'super_admin', TRUE);
 
 -- =============================================
 -- SHOP
@@ -38,6 +61,38 @@ CREATE TABLE shops (
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- =============================================
+-- SHOP ONBOARDING (Lead -> Approved tenant)
+-- =============================================
+CREATE TABLE shop_onboarding (
+    onboarding_id INT AUTO_INCREMENT PRIMARY KEY,
+    reference_code CHAR(36) NOT NULL UNIQUE DEFAULT (UUID()),
+    proposed_shop_name VARCHAR(255) NOT NULL,
+    owner_name VARCHAR(255) NOT NULL,
+    owner_email VARCHAR(255) NOT NULL,
+    owner_mobile VARCHAR(20) NULL,
+    city VARCHAR(100) NULL,
+    state_name VARCHAR(100) NULL,
+    country VARCHAR(100) NULL,
+    gstin VARCHAR(30) NULL,
+    status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    onboarding_notes TEXT NULL,
+    created_shop_id INT NULL,
+    created_by_saas_user INT NULL,
+    approved_by_saas_user INT NULL,
+    approved_at DATETIME NULL,
+    rejected_at DATETIME NULL,
+    rejection_reason VARCHAR(500) NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_onboarding_shop FOREIGN KEY (created_shop_id) REFERENCES shops(shop_id),
+    CONSTRAINT fk_onboarding_created_by FOREIGN KEY (created_by_saas_user) REFERENCES saas_users(saas_user_id),
+    CONSTRAINT fk_onboarding_approved_by FOREIGN KEY (approved_by_saas_user) REFERENCES saas_users(saas_user_id),
+    INDEX idx_onboarding_status_created (status, created_at),
+    INDEX idx_onboarding_owner_email (owner_email)
+);
+
 -- =============================================
 -- BASIC SEED DATA - SHOP & USERS ONLY
 -- =============================================
@@ -111,6 +166,29 @@ CREATE TABLE products (
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_products_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
 );
+
+-- =============================================
+-- CATEGORIES (Shop-scoped product categories)
+-- =============================================
+CREATE TABLE categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    reference_code CHAR(36) NOT NULL UNIQUE DEFAULT (UUID()),
+    shop_id INT NOT NULL,
+    category_name VARCHAR(100) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_categories_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
+    UNIQUE KEY uq_categories_shop_name (shop_id, category_name)
+);
+
+INSERT INTO categories (shop_id, category_name, is_active)
+VALUES
+(1, 'Gold', TRUE),
+(1, 'Silver', TRUE),
+(1, 'Diamond', TRUE),
+(1, 'Platinum', TRUE);
+
 -- =============================================
 -- MERCHANTS
 -- Individual or Shop-based merchants (no login)
@@ -159,6 +237,7 @@ CREATE TABLE merchant_ledger (
     amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     receivable_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
     payable_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_ledger_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
@@ -168,7 +247,8 @@ CREATE TABLE merchant_ledger (
         (weight IS NULL AND weight_unit IS NULL)
         OR (weight IS NOT NULL AND weight_unit IS NOT NULL)
     ),
-    INDEX idx_ledger_shop_merchant_date (shop_id, merchant_id, entry_date)
+    INDEX idx_ledger_shop_merchant_date (shop_id, merchant_id, entry_date),
+    INDEX idx_ledger_is_active (is_active)
 );
 
 -- =============================================
@@ -188,13 +268,37 @@ CREATE TABLE product_stock_history (
     reference_id INT NULL,
     txn_ref VARCHAR(50) NULL,
     notes VARCHAR(500) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_stock_history_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
     CONSTRAINT fk_stock_history_product FOREIGN KEY (product_id) REFERENCES products(product_id),
     CONSTRAINT fk_stock_history_user FOREIGN KEY (created_by) REFERENCES users(user_id),
     INDEX idx_stock_history_product_date (product_id, created_at),
-    INDEX idx_stock_history_shop_date (shop_id, created_at)
+    INDEX idx_stock_history_shop_date (shop_id, created_at),
+    INDEX idx_stock_history_is_active (is_active)
+);
+
+-- =============================================
+-- IS_ACTIVE HISTORY (Audit Trail)
+-- Tracks all is_active status changes across entities
+-- =============================================
+CREATE TABLE is_active_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    shop_id INT NOT NULL,
+    entity_type ENUM('user','product','category','merchant','saas_user','shop') NOT NULL,
+    entity_id INT NOT NULL,
+    entity_name VARCHAR(255) NULL,
+    old_status BOOLEAN NOT NULL,
+    new_status BOOLEAN NOT NULL,
+    changed_by INT NULL,
+    change_reason TEXT NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_is_active_history_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
+    CONSTRAINT fk_is_active_history_user FOREIGN KEY (changed_by) REFERENCES users(user_id),
+    INDEX idx_is_active_history_entity (entity_type, entity_id),
+    INDEX idx_is_active_history_shop_date (shop_id, created_at),
+    INDEX idx_is_active_history_changed_by (changed_by)
 );
 
 -- =============================================

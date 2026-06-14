@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 class SalePurchaseModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'merchant_ledger';
     protected $primaryKey = 'ledger_id';
     protected $protectFields = false;

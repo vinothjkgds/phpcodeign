@@ -11,10 +11,13 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 class MerchantModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'merchants';
     protected $primaryKey = 'merchant_id';
     protected $protectFields = false;
@@ -82,6 +85,7 @@ class MerchantModel extends Model
             CASE WHEN COALESCE(ml.net_balance, 0) > 0 THEN COALESCE(ml.net_balance, 0) ELSE 0 END AS receivable_amount,
             CASE WHEN COALESCE(ml.net_balance, 0) < 0 THEN ABS(COALESCE(ml.net_balance, 0)) ELSE 0 END AS payable_amount");
         $builder->where('m.shop_id', $shopId);
+        $builder->where('m.is_active', true);
 
         // --- Search Filter
         if (!empty($postData['search']['value'])) {
@@ -140,9 +144,10 @@ class MerchantModel extends Model
         }
 
         // --- Total and Filtered Count
-        $total = $this->db->table($this->table)->where('shop_id', $shopId)->countAllResults();
+        $total = $this->db->table($this->table)->where('shop_id', $shopId)->where('is_active', true)->countAllResults();
         $builderCount = $this->db->table($this->table . ' m');
         $builderCount->where('m.shop_id', $shopId);
+        $builderCount->where('m.is_active', true);
         if (!empty($postData['search']['value'])) {
             $search = $postData['search']['value'];
             $builderCount->groupStart()

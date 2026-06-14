@@ -290,6 +290,88 @@ $(document).ready(function(){
 </script>
 <?php endif; ?>
 
+<?php if(trim(strtolower(current_controller())) == 'category' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
+            var formSelector = isEdit ? '#editCategory' : '#addCategory';
+            var submitText = isEdit ? 'Update' : 'Submit';
+            var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit(formSelector, {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: submitText,
+                    loadingText: loadingText,
+                    rules: {
+                        category_name: {
+                            required: true,
+                            maxlength: 100
+                        }
+                    },
+                    messages: {
+                        category_name: {
+                            required: 'Please enter category name',
+                            maxlength: 'Category name cannot exceed 100 characters'
+                        }
+                    }
+                });
+            }
+        });
+    })(window.jQuery);
+} else {
+    console.error('jQuery is not loaded. Check vendor.bundle.base.js path.');
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'category' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+var categoryTable;
+$(document).ready(function(){
+    categoryTable = $('#categoryTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('category/getCategoryListJson') ?>",
+            type: 'POST'
+        },
+        columns: [
+            { data: 'category_name' },
+            { data: 'is_active' },
+            { data: 'created_at' },
+            { data: 'action' }
+        ],
+        order: [[2, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [3] }
+        ]
+    });
+
+    $(document).on('click', '.deleteCategory', function(){
+        var categoryId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this category?')) {
+            $.ajax({
+                url: '<?= site_url("category/delete") ?>/' + categoryId,
+                type: 'POST',
+                success: function(response){
+                    alert(response.message);
+                    categoryTable.ajax.reload(null, false);
+                },
+                error: function(xhr){
+                    var resp = xhr.responseJSON;
+                    alert(resp?.message || 'Error deleting category.');
+                }
+            });
+        }
+    });
+});
+</script>
+<?php endif; ?>
+
 <?php if(trim(strtolower(current_controller())) == 'product' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
 <script>
 if (typeof window.jQuery !== 'undefined') {

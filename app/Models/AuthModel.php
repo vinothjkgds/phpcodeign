@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 /**
@@ -16,6 +17,8 @@ use CodeIgniter\Model;
  */
 class AuthModel extends Model
 {
+    use IsActiveTrait;
+
     /**
      * Database table name.
      *
@@ -39,14 +42,20 @@ class AuthModel extends Model
      * @var array
      */
     protected $allowedFields = [
-        'business_id',
-        'branch_id',
+        'shop_id',
+        'reference_code',
         'name',
         'email',
         'password_hash',
         'mobileno',
+        'profile_image',
+        'id_proof_type',
+        'id_proof_number',
+        'id_proof_front_image',
+        'id_proof_back_image',
         'user_type',
         'is_active',
+        'last_login_at',
     ];
 
     /**
@@ -78,6 +87,15 @@ class AuthModel extends Model
      */
     public function getAuthByEmail(string $email): ?array
     {
-        return $this->where('is_active', true)->where('email', $email)->first();
+        $row = $this->db->table('users u')
+            ->select('u.user_id, u.reference_code, u.shop_id, u.name, u.email, u.password_hash, u.profile_image, u.user_type')
+            ->join('shops s', 's.shop_id = u.shop_id', 'inner')
+            ->where('u.email', $email)
+            ->where('u.is_active', 1)
+            ->where('s.is_active', 1)
+            ->get()
+            ->getRowArray();
+
+        return $row ?: null;
     }
 }

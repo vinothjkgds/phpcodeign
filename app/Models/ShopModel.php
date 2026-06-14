@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
 class ShopModel extends Model
 {
+    use IsActiveTrait;
+
     protected $table = 'shops';
     protected $primaryKey = 'shop_id';
     protected $protectFields = false;

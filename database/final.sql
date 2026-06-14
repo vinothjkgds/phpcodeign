@@ -181,6 +181,7 @@ CREATE TABLE merchant_ledger (
     amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     receivable_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
     payable_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_ledger_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
@@ -190,7 +191,8 @@ CREATE TABLE merchant_ledger (
         (weight IS NULL AND weight_unit IS NULL)
         OR (weight IS NOT NULL AND weight_unit IS NOT NULL)
     ),
-    INDEX idx_ledger_shop_merchant_date (shop_id, merchant_id, entry_date)
+    INDEX idx_ledger_shop_merchant_date (shop_id, merchant_id, entry_date),
+    INDEX idx_ledger_is_active (is_active)
 );
 
 -- =============================================
@@ -210,13 +212,15 @@ CREATE TABLE product_stock_history (
     reference_id INT NULL,
     txn_ref VARCHAR(50) NULL,
     notes VARCHAR(500) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_stock_history_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
     CONSTRAINT fk_stock_history_product FOREIGN KEY (product_id) REFERENCES products(product_id),
     CONSTRAINT fk_stock_history_user FOREIGN KEY (created_by) REFERENCES users(user_id),
     INDEX idx_stock_history_product_date (product_id, created_at),
-    INDEX idx_stock_history_shop_date (shop_id, created_at)
+    INDEX idx_stock_history_shop_date (shop_id, created_at),
+    INDEX idx_stock_history_is_active (is_active)
 );
 
 -- =============================================

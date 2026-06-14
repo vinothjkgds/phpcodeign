@@ -1,3 +1,40 @@
+<?php if (session()->get('auth_usertype') === 'saas'): ?>
+<nav class="sidebar sidebar-offcanvas" id="sidebar">
+  <ul class="nav">
+    <li class="nav-item">
+      <a class="nav-link" href="<?= base_url('saas/dashboard') ?>">
+        <i class="mdi mdi-view-dashboard menu-icon"></i>
+        <span class="menu-title">SaaS Dashboard</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="collapse" href="#nav_onboarding" aria-expanded="<?= current_controller() === 'saasonboarding' ? 'true' : 'false' ?>" aria-controls="nav_onboarding">
+        <i class="mdi mdi-domain-plus menu-icon"></i>
+        <span class="menu-title">Onboarding</span>
+        <i class="menu-arrow"></i>
+      </a>
+      <div class="collapse <?= current_controller() === 'saasonboarding' ? 'show' : '' ?>" id="nav_onboarding">
+        <ul class="nav flex-column sub-menu">
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'saasonboarding' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('saas/onboarding/add') ?>">New Request</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'saasonboarding' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('saas/onboarding') ?>">Manage Requests</a>
+          </li>
+        </ul>
+      </div>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="<?= base_url('saas/logout') ?>">
+        <i class="mdi mdi-logout menu-icon"></i>
+        <span class="menu-title">Logout</span>
+      </a>
+    </li>
+  </ul>
+</nav>
+<?php return; ?>
+<?php endif; ?>
+
 <nav class="sidebar sidebar-offcanvas" id="sidebar">
   <ul class="nav">
     <li class="nav-item">
@@ -69,6 +106,23 @@
           </li>
           <li class="nav-item">
             <a class="nav-link <?= (current_controller() === 'product' && current_method() === 'stockhistory') ? 'active' : '' ?>" href="<?= base_url('product/stock-history') ?>">Stock History</a>
+          </li>
+        </ul>
+      </div>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="collapse" href="#nav_category" aria-expanded="<?= current_controller() === 'category' ? 'true' : 'false' ?>" aria-controls="nav_category">
+        <i class="mdi mdi-shape-outline menu-icon"></i>
+        <span class="menu-title"><?= lang('App.sidebar.categories') ?></span>
+        <i class="menu-arrow"></i>
+      </a>
+      <div class="collapse <?= current_controller() === 'category' ? 'show' : '' ?>" id="nav_category">
+        <ul class="nav flex-column sub-menu">
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'category' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('category/add') ?>"><?= lang('App.sidebar.addCategory') ?></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'category' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('category') ?>"><?= lang('App.sidebar.manageCategory') ?></a>
           </li>
         </ul>
       </div>

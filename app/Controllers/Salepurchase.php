@@ -688,22 +688,6 @@ class Salepurchase extends BaseController
 
     private function getCurrentShopId(): ?int
     {
-        $shopId = session()->get('auth_shop_id');
-        if (!empty($shopId)) {
-            return (int) $shopId;
-        }
-
-        $referenceCode = (string) session()->get('auth_reference');
-        if ($referenceCode === '') {
-            return null;
-        }
-
-        $employee = $this->salePurchaseModel->getUserByRefCode($referenceCode);
-        if (!$employee || empty($employee->shop_id)) {
-            return null;
-        }
-
-        session()->set('auth_shop_id', (int) $employee->shop_id);
-        return (int) $employee->shop_id;
+        return $this->resolveAuthenticatedShopId();
     }
 }

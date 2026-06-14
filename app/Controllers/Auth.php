@@ -49,12 +49,20 @@ class Auth extends BaseController
     {
         // If already logged in, redirect to dashboard
         if (session()->get('isLoggedIn')) {
+            if ($this->request->isAJAX() || strtolower($this->request->getMethod()) === 'post') {
+                return $this->response->setJSON([
+                    'status' => true,
+                    'message' => 'Already logged in',
+                    'redirect' => site_url('dashboard'),
+                ]);
+            }
+
             return redirect()->to('/dashboard');
         }
         // Initialize response structure
         $data = [
             'status'  => false,
-            'message' => '',
+            'message' => 'Login failed',
         ];
         // Handle POST (form submission)
         if (strtolower($this->request->getMethod()) === 'post') {
@@ -68,14 +76,18 @@ class Auth extends BaseController
             if (! $this->validate($rules)) {
                 $data['validation'] = $this->validator;
                 $data['error']      = 'Form Validation Error';
+                $data['message']    = 'Form Validation Error';
             } else {
                 // Fetch user by email
                 $auth = $this->authModel->getAuthByEmail($this->request->getVar('email'));
 
                 // Verify password
                 if ($auth && password_verify($this->request->getVar('password'), $auth['password_hash'])) {
+                    session()->regenerate();
+
                     // Prepare session data
                     $sessionData = [
+                        'auth_id' => (int) $auth['user_id'],
                         'auth_reference' => $auth['reference_code'],
                         'auth_name'      => $auth['name'],
                         'auth_email'     => $auth['email'],
@@ -86,6 +98,7 @@ class Auth extends BaseController
                     ];
                     // Set session variables
                     session()->set($sessionData);
+                    $this->authModel->update((string) $auth['reference_code'], ['last_login_at' => date('Y-m-d H:i:s')]);
                     // Success response
                     $data = [
                         'status'   => true,
@@ -95,6 +108,7 @@ class Auth extends BaseController
                 } else {
                     // Invalid credentials
                     $data['error'] = 'Invalid email or password';
+                    $data['message'] = 'Invalid email or password';
                 }
             }
 
@@ -137,7 +151,7 @@ class Auth extends BaseController
      */
     public function dashboard()
     {
-        $shopId = (int) (session()->get('auth_shop_id') ?? 0);
+        $shopId = (int) ($this->resolveAuthenticatedShopId() ?? 0);
         $dashboardGeneratedAt                 = date('Y-m-d H:i:s');
         $totalOwnerPayableToMerchants        = 0.0;
         $totalOwnerReceivableFromMerchants   = 0.0;

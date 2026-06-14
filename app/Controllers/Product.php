@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Config\ProductConstants;
+use App\Models\CategoryModel;
 use App\Models\ProductModel;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -10,10 +10,12 @@ use CodeIgniter\HTTP\ResponseInterface;
 class Product extends BaseController
 {
     protected $productModel;
+    protected $categoryModel;
 
     public function __construct()
     {
         $this->productModel = new ProductModel();
+        $this->categoryModel = new CategoryModel();
         helper(['form', 'url']);
     }
 
@@ -41,9 +43,14 @@ class Product extends BaseController
 
     public function add()
     {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Unable to identify current shop.']);
+        }
+
         return view('index', [
             'body_content' => 'product/add',
-            'categories' => ProductConstants::CATEGORIES,
+            'categories' => $this->categoryModel->getCategoryOptions($shopId),
         ]);
     }
 
@@ -62,7 +69,7 @@ class Product extends BaseController
         return view('index', [
             'body_content' => 'product/edit',
             'productInfo' => $productInfo,
-            'categories' => ProductConstants::CATEGORIES,
+            'categories' => $this->getProductCategoryOptions($shopId, (string) ($productInfo->category ?? '')),
         ]);
     }
 
@@ -164,8 +171,6 @@ class Product extends BaseController
             }
 
             $validation = \Config\Services::validation();
-            $categoryValues = array_keys(ProductConstants::CATEGORIES);
-            $categoryInList = implode(',', $categoryValues);
             $validation->setRules([
                 'product_name' => [
                     'rules' => 'required',
@@ -174,10 +179,7 @@ class Product extends BaseController
                     ],
                 ],
                 'category' => [
-                    'rules' => 'permit_empty|in_list[' . $categoryInList . ']',
-                    'errors' => [
-                        'in_list' => 'Please select a valid category.',
-                    ],
+                    'rules' => 'permit_empty|max_length[100]',
                 ],
                 'current_stock' => [
                     'rules' => 'required|decimal|greater_than_equal_to[0]',
@@ -209,6 +211,11 @@ class Product extends BaseController
                 return $this->respondProductSave(false, implode(' | ', $errors), null, $errors, 422);
             }
 
+            $categoryName = trim((string) ($this->request->getPost('category') ?? ''));
+            if ($categoryName !== '' && !$this->categoryModel->categoryExistsForShop($categoryName, $shopId)) {
+                return $this->respondProductSave(false, 'Please select a valid category.', null, ['category' => 'Please select a valid category.'], 422);
+            }
+
             $productImageFile = $this->request->getFile('product_image');
             if ($productImageFile && $productImageFile->getError() !== UPLOAD_ERR_NO_FILE && !$productImageFile->isValid()) {
                 return $this->respondProductSave(false, 'Invalid product image upload.', null, ['product_image' => 'Invalid product image upload.'], 422);
@@ -217,7 +224,7 @@ class Product extends BaseController
             $data = [
                 'shop_id' => $shopId,
                 'product_name' => trim((string) $this->request->getPost('product_name')),
-                'category' => trim((string) ($this->request->getPost('category') ?? '')) ?: null,
+                'category' => $categoryName !== '' ? $categoryName : null,
                 'current_stock' => (float) ($this->request->getPost('current_stock') ?? 0),
                 'stock_unit' => trim((string) ($this->request->getPost('stock_unit') ?? 'gram')) ?: 'gram',
                 'reorder_level' => (float) ($this->request->getPost('reorder_level') ?? 100),
@@ -497,23 +504,7 @@ class Product extends BaseController
 
     private function getCurrentShopId(): ?int
     {
-        $shopId = session()->get('auth_shop_id');
-        if (!empty($shopId)) {
-            return (int) $shopId;
-        }
-
-        $referenceCode = (string) session()->get('auth_reference');
-        if ($referenceCode === '') {
-            return null;
-        }
-
-        $employee = $this->productModel->getUserByRefCode($referenceCode);
-        if (!$employee || empty($employee->shop_id)) {
-            return null;
-        }
-
-        session()->set('auth_shop_id', (int) $employee->shop_id);
-        return (int) $employee->shop_id;
+        return $this->resolveAuthenticatedShopId();
     }
 
     private function storeProductImage(UploadedFile $file): string
@@ -636,5 +627,17 @@ class Product extends BaseController
         $converted = $valueInGram / $massUnitToGram[$to];
 
         return round($converted, 6);
+    }
+
+    private function getProductCategoryOptions(int $shopId, string $selectedCategory = ''): array
+    {
+        $categories = $this->categoryModel->getCategoryOptions($shopId);
+        $selectedCategory = trim($selectedCategory);
+
+        if ($selectedCategory !== '' && !array_key_exists($selectedCategory, $categories)) {
+            $categories = [$selectedCategory => $selectedCategory] + $categories;
+        }
+
+        return $categories;
     }
 }
