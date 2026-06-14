@@ -56,14 +56,16 @@
                     <div class="form-group">
                         <label for="sh_unit">Input Unit</label>
                         <select class="form-select rounded-0" id="sh_unit" name="sh_unit" required>
-                            <option value="gram">Gram (gm)</option>
-                            <option value="kilogram">Kilogram (kg)</option>
-                            <option value="milligram">Milligram (mg)</option>
-                            <option value="tola">Tola</option>
-                            <option value="ounce">Ounce (oz)</option>
-                            <option value="piece">Piece (pc)</option>
-                            <option value="liter">Liter (ltr)</option>
-                            <option value="other">Other</option>
+                            <?php foreach (($stockUnits ?? []) as $unit): ?>
+                                <?php
+                                    $code = strtolower(trim((string) ($unit['unit_code'] ?? '')));
+                                    if ($code === '') { continue; }
+                                    $symbol = trim((string) ($unit['unit_symbol'] ?? ''));
+                                    $label = trim((string) ($unit['unit_name'] ?? $code));
+                                    $display = $symbol !== '' ? $symbol . ' - ' . $label : $label;
+                                ?>
+                                <option value="<?= esc($code) ?>" data-factor="<?= esc(number_format((float) ($unit['factor_to_base'] ?? 0), 8, '.', '')) ?>" data-unit-type="<?= esc((string) ($unit['unit_type'] ?? '')) ?>"><?= esc($display) ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <small class="form-text text-muted" id="sh_unit_hint"></small>
                     </div>

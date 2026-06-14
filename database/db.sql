@@ -190,6 +190,7 @@ CREATE TABLE products (
     shop_id INT NOT NULL,
     product_name VARCHAR(255) NOT NULL,
     product_image VARCHAR(500) NULL,
+    barcode_value VARCHAR(100) NULL UNIQUE,
     category VARCHAR(50) NULL,
     current_stock DECIMAL(12,3) NOT NULL DEFAULT 0.000,
     stock_unit VARCHAR(50) NOT NULL,

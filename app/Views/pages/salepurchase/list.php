@@ -8,13 +8,16 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="card-title mb-0">Sale / Purchase Entries</h4>
-            <div>
-                <button type="button" id="importSalePurchaseCsv" class="btn btn-outline-primary me-2">Import CSV</button>
-                <button type="button" id="exportSalePurchaseCsvFiltered" class="btn btn-outline-secondary me-2">Export Filtered CSV</button>
-                <button type="button" id="exportSalePurchaseExcelFiltered" class="btn btn-outline-success me-2">Export Filtered Excel</button>
-                <button type="button" id="exportSalePurchaseCsvAll" class="btn btn-outline-secondary me-2">Export All CSV</button>
-                <button type="button" id="exportSalePurchaseExcelAll" class="btn btn-outline-success me-2">Export All Excel</button>
-                <a href="<?= base_url('salepurchase/add') ?>" class="btn btn-primary">Add Entry</a>
+            <div class="d-flex align-items-center flex-nowrap gap-2">
+                <select class="form-select form-select-lg rounded-0" id="salePurchaseActionSelect" >
+                    <option value="">Select Action</option>
+                    <option value="import_csv">Import CSV</option>
+                    <option value="export_csv_filtered">Export Filtered CSV</option>
+                    <option value="export_excel_filtered">Export Filtered Excel</option>
+                    <option value="export_csv_all">Export All CSV</option>
+                    <option value="export_excel_all">Export All Excel</option>
+                </select>
+                <a href="<?= base_url('salepurchase/add') ?>" class="btn btn-primary text-center" style="min-width: 120px;">Add Entry</a>
             </div>
         </div>
         <form id="importSalePurchaseCsvForm" action="<?= site_url('salepurchase/import/csv') ?>" method="post" enctype="multipart/form-data" style="display:none;">
@@ -25,7 +28,7 @@
         <div class="row g-3">
             <div class="col-md-3">
                 <label for="filter_entry_type" class="form-label">Entry Type</label>
-                <select class="form-select rounded-0" id="filter_entry_type">
+                <select class="form-select form-select-lg rounded-0" id="filter_entry_type">
                     <option value="">All</option>
                     <option value="opening">Opening Balance</option>
                     <option value="sale">Sale</option>
@@ -36,7 +39,7 @@
             </div>
             <div class="col-md-3">
                 <label for="filter_merchant_id" class="form-label">Merchant</label>
-                <select class="form-select rounded-0" id="filter_merchant_id">
+                <select class="form-select form-select-lg rounded-0" id="filter_merchant_id">
                     <option value="">All</option>
                     <?php foreach (($merchants ?? []) as $merchant): ?>
                         <option value="<?= (int) $merchant->merchant_id ?>"><?= esc($merchant->merchant_name) ?></option>

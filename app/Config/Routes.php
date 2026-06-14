@@ -25,6 +25,8 @@ $routes->group('saas', ['filter' => 'saasauth'], function($routes) {
     $routes->post('onboarding/save', 'SaasOnboarding::save');
     $routes->post('onboarding/approve/(:segment)', 'SaasOnboarding::approve/$1');
     $routes->post('onboarding/reject/(:segment)', 'SaasOnboarding::reject/$1');
+    $routes->post('onboarding/reset-owner-password/(:segment)', 'SaasOnboarding::resetOwnerPassword/$1');
+    $routes->post('onboarding/toggle-shop-status/(:segment)', 'SaasOnboarding::toggleShopStatus/$1');
 });
 
 $routes->get('lang/(:segment)', 'Auth::setLanguage/$1');
@@ -69,6 +71,7 @@ $routes->group('product', ['filter' => 'auth'], function($routes) {
     $routes->post('getProductListJson', 'Product::getProductListJson');
     $routes->post('getStockHistoryListJson', 'Product::getStockHistoryListJson');
     $routes->get('getProductInfo/(:num)', 'Product::getProductInfo/$1');
+    $routes->get('barcode/(:num)', 'Product::barcode/$1');
     $routes->post('delete/(:segment)', 'Product::delete/$1');
 });
 

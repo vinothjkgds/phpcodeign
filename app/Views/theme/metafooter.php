@@ -68,6 +68,22 @@ if (typeof window.jQuery !== 'undefined' && window.jQuery.validator) {
                         return /\.(jpe?g|png|webp)$/i.test(value);
                     }, 'Only JPG, JPEG, PNG, or WEBP files are allowed.');
                 }
+
+                if (!$.validator.methods.positiveFactor) {
+                    $.validator.addMethod('positiveFactor', function(value, element) {
+                        if (this.optional(element)) {
+                            return true;
+                        }
+
+                        var normalized = String(value || '').trim().replace(',', '.');
+                        if (normalized === '') {
+                            return false;
+                        }
+
+                        var parsed = Number(normalized);
+                        return Number.isFinite(parsed) && parsed > 0;
+                    }, 'Please enter valid conversion factor (> 0)');
+                }
             },
             defaultErrorPlacement: function(label, element) {
                 label.addClass('mt-2 text-danger w-100');
@@ -679,6 +695,17 @@ if (typeof window.jQuery !== 'undefined') {
             var formSelector = isEdit ? '#editStockUnit' : '#addStockUnit';
             var submitText = isEdit ? 'Update' : 'Submit';
             var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+            var $form = $(formSelector);
+            var forceBase = ($form.attr('data-force-base') || '0') === '1';
+
+            if (forceBase) {
+                $('#is_base').val('1');
+                $('#factor_to_base').val('1').prop('readonly', true)
+                    .removeClass('form-control-danger')
+                    .attr('aria-invalid', 'false');
+                $('#factor_to_base-error').remove();
+                $('#factor_to_base').closest('.form-group').removeClass('has-danger');
+            }
 
             if (window.AppFormValidation) {
                 window.AppFormValidation.initCustomMethods();
@@ -691,7 +718,9 @@ if (typeof window.jQuery !== 'undefined') {
                         unit_code: { required: true, maxlength: 50 },
                         unit_symbol: { maxlength: 20 },
                         unit_type: { required: true },
-                        factor_to_base: { required: true, number: true, min: 0.00000001 }
+                        factor_to_base: forceBase
+                            ? { required: false }
+                            : { required: true, positiveFactor: true }
                     },
                     messages: {
                         unit_name: 'Please enter unit name',
@@ -701,11 +730,44 @@ if (typeof window.jQuery !== 'undefined') {
                         factor_to_base: 'Please enter valid conversion factor (> 0)'
                     }
                 });
+
+                if (forceBase) {
+                    var validator = $form.data('validator');
+                    if (validator) {
+                        $('#factor_to_base').rules('remove');
+                        validator.resetForm();
+                    }
+                    $('#factor_to_base').removeClass('error form-control-danger').attr('aria-invalid', 'false');
+                    $('#factor_to_base-error').remove();
+                    $('#factor_to_base').closest('.form-group').removeClass('has-danger');
+                }
             }
 
             $(document).on('input', '#unit_code', function() {
                 var normalized = ($(this).val() || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
                 $(this).val(normalized);
+            });
+
+            $(document).on('input blur', '#factor_to_base', function() {
+                var current = String($(this).val() || '');
+                current = current.replace(',', '.');
+                current = current.replace(/[^0-9.]/g, '');
+
+                var dotIndex = current.indexOf('.');
+                if (dotIndex !== -1) {
+                    current = current.substring(0, dotIndex + 1) + current.substring(dotIndex + 1).replace(/\./g, '');
+                }
+
+                $(this).val(current);
+            });
+
+            $(document).on('submit', formSelector, function() {
+                if (forceBase) {
+                    $('#factor_to_base').val('1');
+                    if ($('#is_base').is(':disabled') && !$('input[name="is_base"]').length) {
+                        $('<input>', { type: 'hidden', name: 'is_base', value: '1' }).appendTo($form);
+                    }
+                }
             });
         });
     })(window.jQuery);
@@ -1523,35 +1585,69 @@ $(document).ready(function(){
         salePurchaseTable.ajax.reload();
     });
 
-    $(document).on('click', '#exportSalePurchaseCsvFiltered', function(){
+    function exportSalePurchaseFiltered(format) {
         var query = getSalePurchaseExportQuery();
-        var url = "<?= site_url('salepurchase/export/csv') ?>";
+        var url = format === 'excel'
+            ? "<?= site_url('salepurchase/export/excel') ?>"
+            : "<?= site_url('salepurchase/export/csv') ?>";
         if (query) {
             url += '?' + query;
         }
         window.open(url, '_blank');
+    }
+
+    function exportSalePurchaseAll(format) {
+        var url = format === 'excel'
+            ? "<?= site_url('salepurchase/export/excel') ?>"
+            : "<?= site_url('salepurchase/export/csv') ?>";
+        window.open(url, '_blank');
+    }
+
+    function importSalePurchaseCsv() {
+        $('#importSalePurchaseCsvFile').val('');
+        $('#importSalePurchaseCsvFile').trigger('click');
+    }
+
+    $(document).on('change', '#salePurchaseActionSelect', function(){
+        var action = ($(this).val() || '').trim();
+        if (action === '') {
+            return;
+        }
+
+        if (action === 'import_csv') {
+            importSalePurchaseCsv();
+        } else if (action === 'export_csv_filtered') {
+            exportSalePurchaseFiltered('csv');
+        } else if (action === 'export_excel_filtered') {
+            exportSalePurchaseFiltered('excel');
+        } else if (action === 'export_csv_all') {
+            exportSalePurchaseAll('csv');
+        } else if (action === 'export_excel_all') {
+            exportSalePurchaseAll('excel');
+        }
+
+        // Reset back to placeholder after triggering action.
+        $(this).val('');
+    });
+
+    $(document).on('click', '#exportSalePurchaseCsvFiltered', function(){
+        exportSalePurchaseFiltered('csv');
     });
 
     $(document).on('click', '#exportSalePurchaseExcelFiltered', function(){
-        var query = getSalePurchaseExportQuery();
-        var url = "<?= site_url('salepurchase/export/excel') ?>";
-        if (query) {
-            url += '?' + query;
-        }
-        window.open(url, '_blank');
+        exportSalePurchaseFiltered('excel');
     });
 
     $(document).on('click', '#exportSalePurchaseCsvAll', function(){
-        window.open("<?= site_url('salepurchase/export/csv') ?>", '_blank');
+        exportSalePurchaseAll('csv');
     });
 
     $(document).on('click', '#exportSalePurchaseExcelAll', function(){
-        window.open("<?= site_url('salepurchase/export/excel') ?>", '_blank');
+        exportSalePurchaseAll('excel');
     });
 
     $(document).on('click', '#importSalePurchaseCsv', function(){
-        $('#importSalePurchaseCsvFile').val('');
-        $('#importSalePurchaseCsvFile').trigger('click');
+        importSalePurchaseCsv();
     });
 
     $(document).on('change', '#importSalePurchaseCsvFile', function(){

@@ -8,6 +8,9 @@ use App\Models\ProductModel;
 use App\Models\StockUnitModel;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\HTTP\ResponseInterface;
+use Picqer\Barcode\Exceptions\BarcodeException;
+use Picqer\Barcode\BarcodeGeneratorPNG;
+use Picqer\Barcode\BarcodeGeneratorSVG;
 
 class Product extends BaseController
 {
@@ -309,6 +312,13 @@ class Product extends BaseController
             }
 
             $this->productModel->addProduct($data);
+            $newProductId = (int) $this->productModel->getInsertID();
+
+            if ($newProductId > 0) {
+                $barcodeValue = $this->buildProductBarcodeValue($shopId, $newProductId);
+                $this->productModel->update($newProductId, ['barcode_value' => $barcodeValue]);
+            }
+
             return $this->respondProductSave(true, 'Product added successfully', site_url('product'));
         } catch (\Throwable $e) {
             return $this->respondProductSave(false, $e->getMessage(), null, [], 500);
@@ -483,9 +493,12 @@ class Product extends BaseController
             ->orderBy('product_name', 'ASC')
             ->findAll();
 
+        $stockUnits = $this->stockUnitModel->getUnitsForDropdown($shopId);
+
         return view('index', [
             'body_content' => 'product/stock_history',
             'products' => $products,
+            'stockUnits' => $stockUnits,
         ]);
     }
 
@@ -536,6 +549,50 @@ class Product extends BaseController
             'stock_unit_label' => $unitLabel,
             'current_stock_formatted' => number_format((float) $product->current_stock, 3) . ' ' . $unitLabel,
         ]);
+    }
+
+    public function barcode($productId = '')
+    {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return $this->response->setStatusCode(403)->setBody('Unable to identify current shop.');
+        }
+
+        if ($productId === '') {
+            return $this->response->setStatusCode(400)->setBody('Product ID required.');
+        }
+
+        $product = $this->productModel->getProductById((int) $productId, $shopId);
+        if (!$product) {
+            return $this->response->setStatusCode(404)->setBody('Product not found.');
+        }
+
+        $barcodeValue = (string) ($product->barcode_value ?? '');
+        if ($barcodeValue === '') {
+            $barcodeValue = $this->buildProductBarcodeValue($shopId, (int) $product->product_id);
+            $this->productModel->update((int) $product->product_id, ['barcode_value' => $barcodeValue]);
+        }
+
+        $fileNameBase = 'product_' . (int) $product->product_id . '_barcode';
+        $isDownload = (string) ($this->request->getGet('download') ?? '') === '1';
+
+        $contentType = 'image/png';
+        $fileName = $fileNameBase . '.png';
+
+        try {
+            $generator = new BarcodeGeneratorPNG();
+            $barcodeContent = $generator->getBarcode($barcodeValue, $generator::TYPE_CODE_128, 2, 70);
+        } catch (BarcodeException $e) {
+            $svgGenerator = new BarcodeGeneratorSVG();
+            $barcodeContent = $svgGenerator->getBarcode($barcodeValue, $svgGenerator::TYPE_CODE_128, 2, 70);
+            $contentType = 'image/svg+xml';
+            $fileName = $fileNameBase . '.svg';
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', $contentType)
+            ->setHeader('Content-Disposition', ($isDownload ? 'attachment' : 'inline') . '; filename="' . $fileName . '"')
+            ->setBody($barcodeContent);
     }
 
     private function respondProductSave(bool $status, string $message, ?string $redirect = null, array $errors = [], int $statusCode = 200)
@@ -676,5 +733,10 @@ class Product extends BaseController
         }
 
         return $categories;
+    }
+
+    private function buildProductBarcodeValue(int $shopId, int $productId): string
+    {
+        return 'S' . $shopId . 'P' . $productId;
     }
 }

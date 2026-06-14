@@ -44,7 +44,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="factor_to_base">Conversion Factor to Base Unit <span class="text-danger">*</span></label>
-                                <input id="factor_to_base" class="form-control" name="factor_to_base" type="number" min="0.00000001" step="0.00000001" required value="<?= esc(number_format((float) ($unitInfo->factor_to_base ?? 1), 8, '.', '')) ?>" placeholder="Ex: 1.00000000">
+                                <input id="factor_to_base" class="form-control" name="factor_to_base" type="text" inputmode="decimal" required value="<?= esc(number_format((float) ($unitInfo->factor_to_base ?? 1), 8, '.', '')) ?>" placeholder="Ex: 1.00000000">
                                 <small class="text-muted">Example: If base is gram, kilogram factor is 1000.</small>
                             </div>
                         </div>

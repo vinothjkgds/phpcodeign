@@ -1,4 +1,5 @@
-<form class="cmxform" id="addStockUnit" method="POST" action="<?= site_url('stockunit/save') ?>">
+<?php $isFirstUnitSetup = empty($hasBaseUnit); ?>
+<form class="cmxform" id="addStockUnit" method="POST" action="<?= site_url('stockunit/save') ?>" data-force-base="<?= $isFirstUnitSetup ? '1' : '0' ?>">
 <div class="row grid-margin">
     <div class="col-lg-12">
         <div class="card">
@@ -44,18 +45,26 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="factor_to_base">Conversion Factor to Base Unit <span class="text-danger">*</span></label>
-                                <input id="factor_to_base" class="form-control" name="factor_to_base" type="number" min="0.00000001" step="0.00000001" required value="1.00000000" placeholder="Ex: 1.00000000">
-                                <small class="text-muted">Example: If base is gram, kilogram factor is 1000.</small>
+                                <?php if ($isFirstUnitSetup): ?>
+                                    <input id="factor_to_base_display" class="form-control" type="text" value="1.00000000" readonly>
+                                    <input id="factor_to_base" type="hidden" name="factor_to_base" value="1.00000000">
+                                <?php else: ?>
+                                    <input id="factor_to_base" class="form-control" name="factor_to_base" type="text" inputmode="decimal" required value="1.00000000" placeholder="Ex: 1.00000000">
+                                <?php endif; ?>
+                                <small class="text-muted">Example: If base is gram, kilogram factor is 1000.<?= $isFirstUnitSetup ? ' First unit is auto-set as base with factor 1.' : '' ?></small>
                             </div>
                         </div>
 
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label for="is_base">Base Unit</label>
-                                <select class="form-select rounded-0" id="is_base" name="is_base">
-                                    <option value="0">No</option>
-                                    <option value="1">Yes</option>
+                                <select class="form-select rounded-0" id="is_base" name="is_base" <?= $isFirstUnitSetup ? 'disabled' : '' ?>>
+                                    <option value="0" <?= $isFirstUnitSetup ? '' : 'selected' ?>>No</option>
+                                    <option value="1" <?= $isFirstUnitSetup ? 'selected' : '' ?>>Yes</option>
                                 </select>
+                                <?php if ($isFirstUnitSetup): ?>
+                                    <input type="hidden" name="is_base" value="1">
+                                <?php endif; ?>
                             </div>
                         </div>
 

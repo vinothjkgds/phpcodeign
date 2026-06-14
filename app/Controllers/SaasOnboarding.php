@@ -182,4 +182,81 @@ class SaasOnboarding extends BaseController
 
         return redirect()->to(site_url('saas/onboarding'))->with('success', 'Onboarding request rejected.');
     }
+
+    public function resetOwnerPassword($referenceCode)
+    {
+        $item = $this->onboardingModel->getByReferenceCode((string) $referenceCode);
+        if (!$item) {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Onboarding request not found.');
+        }
+
+        $shopId = (int) ($item['created_shop_id'] ?? 0);
+        if ($shopId <= 0 || (string) ($item['status'] ?? '') !== 'approved') {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Password reset is available only for approved onboarded shops.');
+        }
+
+        $db = db_connect();
+        $owner = $db->table('users')
+            ->select('user_id, email')
+            ->where('shop_id', $shopId)
+            ->where('user_type', 'owner')
+            ->orderBy('user_id', 'ASC')
+            ->get()
+            ->getRowArray();
+
+        if (!$owner) {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Owner account not found for this shop.');
+        }
+
+        $temporaryPassword = 'Owner@' . random_int(1000, 9999);
+        $passwordHash = password_hash($temporaryPassword, PASSWORD_DEFAULT);
+
+        $db->table('users')
+            ->where('user_id', (int) $owner['user_id'])
+            ->update([
+                'password_hash' => $passwordHash,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+        return redirect()->to(site_url('saas/onboarding'))
+            ->with('success', 'Owner password reset successfully. Temporary password: ' . $temporaryPassword);
+    }
+
+    public function toggleShopStatus($referenceCode)
+    {
+        $item = $this->onboardingModel->getByReferenceCode((string) $referenceCode);
+        if (!$item) {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Onboarding request not found.');
+        }
+
+        $shopId = (int) ($item['created_shop_id'] ?? 0);
+        if ($shopId <= 0 || (string) ($item['status'] ?? '') !== 'approved') {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Shop status can be changed only for approved onboarded shops.');
+        }
+
+        $db = db_connect();
+        $shop = $db->table('shops')
+            ->select('shop_id, shop_name, is_active')
+            ->where('shop_id', $shopId)
+            ->get()
+            ->getRowArray();
+
+        if (!$shop) {
+            return redirect()->to(site_url('saas/onboarding'))->with('error', 'Shop not found.');
+        }
+
+        $nextStatus = ((int) ($shop['is_active'] ?? 0) === 1) ? 0 : 1;
+
+        $db->table('shops')
+            ->where('shop_id', $shopId)
+            ->update([
+                'is_active' => $nextStatus,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+        $statusText = $nextStatus === 1 ? 'activated' : 'inactivated';
+
+        return redirect()->to(site_url('saas/onboarding'))
+            ->with('success', 'Shop ' . ((string) ($shop['shop_name'] ?? '')) . ' has been ' . $statusText . '.');
+    }
 }

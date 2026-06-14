@@ -22,7 +22,13 @@ class Stockunit extends BaseController
 
     public function add(): string
     {
-        return view('index', ['body_content' => 'stockunit/add']);
+        $shopId = $this->getCurrentShopId();
+        $hasBaseUnit = $shopId !== null ? $this->stockUnitModel->hasBaseUnit($shopId) : true;
+
+        return view('index', [
+            'body_content' => 'stockunit/add',
+            'hasBaseUnit' => $hasBaseUnit,
+        ]);
     }
 
     public function edit(string $referenceCode)
@@ -75,6 +81,8 @@ class Stockunit extends BaseController
                 }
             }
 
+            $mustCreateBaseUnit = $referenceCode === '' && !$this->stockUnitModel->hasBaseUnit($shopId);
+
             $validation = \Config\Services::validation();
             $validation->setRules([
                 'unit_name' => [
@@ -106,7 +114,7 @@ class Stockunit extends BaseController
                     ],
                 ],
                 'factor_to_base' => [
-                    'rules' => 'required|decimal|greater_than[0]',
+                    'rules' => $mustCreateBaseUnit ? 'permit_empty|decimal|greater_than[0]' : 'required|decimal|greater_than[0]',
                     'errors' => [
                         'required' => 'Conversion factor is required.',
                         'decimal' => 'Conversion factor must be a valid decimal number.',
@@ -126,7 +134,9 @@ class Stockunit extends BaseController
                 return $this->respondSave(false, 'Unit code already exists for this shop.', null, ['unit_code' => 'Unit code already exists for this shop.'], 422);
             }
 
-            $isBase = $this->request->getPost('is_base') ? true : false;
+            $isBase = $mustCreateBaseUnit ? true : ($this->request->getPost('is_base') ? true : false);
+            $factorInput = trim((string) ($this->request->getPost('factor_to_base') ?? ''));
+            $factorToBase = $factorInput !== '' ? (float) $factorInput : 1.0;
 
             if ($existing && (int) ($existing->is_base ?? 0) === 1 && !$isBase) {
                 $otherBaseCount = $this->stockUnitModel->where('shop_id', $shopId)
@@ -144,14 +154,15 @@ class Stockunit extends BaseController
                 'unit_code' => $unitCode,
                 'unit_symbol' => trim((string) ($this->request->getPost('unit_symbol') ?? '')) ?: null,
                 'unit_type' => trim((string) $this->request->getPost('unit_type')),
-                'factor_to_base' => (float) $this->request->getPost('factor_to_base'),
+                'factor_to_base' => $factorToBase,
                 'is_base' => $isBase ? 1 : 0,
                 'is_active' => $this->request->getPost('is_active') ? 1 : 0,
             ];
 
-            if (!$this->stockUnitModel->hasBaseUnit($shopId)) {
+            if ($mustCreateBaseUnit) {
                 $data['is_base'] = 1;
                 $data['is_active'] = 1;
+                $data['factor_to_base'] = 1.0;
             }
 
             if ($referenceCode !== '') {

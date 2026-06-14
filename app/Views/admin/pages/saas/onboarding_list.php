@@ -41,6 +41,13 @@
                                 <?php $status = (string) ($row['status'] ?? 'pending'); ?>
                                 <?php if ($status === 'approved'): ?>
                                     <span class="badge badge-success">Approved</span>
+                                    <?php if ((int) ($row['created_shop_id'] ?? 0) > 0): ?>
+                                        <?php if ((int) ($row['shop_is_active'] ?? 1) === 1): ?>
+                                            <small class="d-block text-success">Shop Active</small>
+                                        <?php else: ?>
+                                            <small class="d-block text-danger">Shop Inactive</small>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 <?php elseif ($status === 'rejected'): ?>
                                     <span class="badge badge-danger">Rejected</span>
                                 <?php else: ?>
@@ -58,6 +65,19 @@
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="rejection_reason" value="Rejected by onboarding admin">
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this onboarding request?');">Reject</button>
+                                    </form>
+                                <?php elseif ($status === 'approved' && (int) ($row['created_shop_id'] ?? 0) > 0): ?>
+                                    <form method="post" action="<?= site_url('saas/onboarding/reset-owner-password/' . $row['reference_code']) ?>" style="display:inline-block; margin-bottom:4px;">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Reset owner password for this shop?');">Reset Owner Password</button>
+                                    </form>
+                                    <form method="post" action="<?= site_url('saas/onboarding/toggle-shop-status/' . $row['reference_code']) ?>" style="display:inline-block; margin-bottom:4px;">
+                                        <?= csrf_field() ?>
+                                        <?php if ((int) ($row['shop_is_active'] ?? 1) === 1): ?>
+                                            <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('Set this shop as inactive?');">Set Inactive</button>
+                                        <?php else: ?>
+                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Set this shop as active?');">Set Active</button>
+                                        <?php endif; ?>
                                     </form>
                                 <?php else: ?>
                                     <span class="text-muted">No actions</span>

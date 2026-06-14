@@ -4,6 +4,9 @@
  */
 
 $productStockUnit = strtolower(trim((string) ($productInfo->stock_unit ?? 'gram')));
+$barcodeValue = (string) ($productInfo->barcode_value ?? 'N/A');
+$barcodeImageUrl = site_url('product/barcode/' . (int) ($productInfo->product_id ?? 0));
+$barcodeDownloadUrl = site_url('product/barcode/' . (int) ($productInfo->product_id ?? 0) . '?download=1');
 ?>
 
 <style>
@@ -46,6 +49,19 @@ $productStockUnit = strtolower(trim((string) ($productInfo->stock_unit ?? 'gram'
                 <?php else: ?>
                     <span class="badge badge-danger">Inactive</span>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row align-items-end">
+            <div class="col-md-6">
+                <strong>Barcode:</strong><br>
+                <img src="<?= esc($barcodeImageUrl, 'attr') ?>" alt="Product Barcode" class="img-fluid mt-2" style="max-width:360px; border:1px solid #e9ecef; padding:8px; background:#fff;">
+                <div class="mt-2 text-muted">Code: <?= esc($barcodeValue) ?></div>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <a href="<?= esc($barcodeDownloadUrl, 'attr') ?>" class="btn btn-outline-primary">Download Barcode</a>
             </div>
         </div>
     </div>

@@ -17,6 +17,7 @@ class ProductModel extends Model
         'shop_id',
         'product_name',
         'product_image',
+        'barcode_value',
         'category',
         'current_stock',
         'stock_unit',
