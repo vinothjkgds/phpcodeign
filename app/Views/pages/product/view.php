@@ -69,14 +69,18 @@ $productStockUnit = strtolower(trim((string) ($productInfo->stock_unit ?? 'gram'
                     <div class="form-group">
                         <label for="adjustment_unit">Input Unit</label>
                         <select class="form-select rounded-0 stock-unit-select" id="adjustment_unit" name="adjustment_unit" required>
-                            <option value="gram" <?= $productStockUnit === 'gram' ? 'selected' : '' ?>>Gram (gm)</option>
-                            <option value="kilogram" <?= $productStockUnit === 'kilogram' ? 'selected' : '' ?>>Kilogram (kg)</option>
-                            <option value="milligram" <?= $productStockUnit === 'milligram' ? 'selected' : '' ?>>Milligram (mg)</option>
-                            <option value="tola" <?= $productStockUnit === 'tola' ? 'selected' : '' ?>>Tola</option>
-                            <option value="ounce" <?= $productStockUnit === 'ounce' ? 'selected' : '' ?>>Ounce (oz)</option>
-                            <option value="piece" <?= $productStockUnit === 'piece' ? 'selected' : '' ?>>Piece (pc)</option>
-                            <option value="liter" <?= $productStockUnit === 'liter' ? 'selected' : '' ?>>Liter (ltr)</option>
-                            <option value="other" <?= $productStockUnit === 'other' ? 'selected' : '' ?>>Other</option>
+                            <?php foreach (($stockUnits ?? []) as $unit): ?>
+                                <?php
+                                    $code = strtolower(trim((string) ($unit['unit_code'] ?? '')));
+                                    if ($code === '') {
+                                        continue;
+                                    }
+                                    $symbol = trim((string) ($unit['unit_symbol'] ?? ''));
+                                    $label = trim((string) ($unit['unit_name'] ?? $code));
+                                    $display = $symbol !== '' ? $label . ' (' . $symbol . ')' : $label;
+                                ?>
+                                <option value="<?= esc($code) ?>" <?= $productStockUnit === $code ? 'selected' : '' ?>><?= esc($display) ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <small class="form-text text-muted">Product stock unit: <?= esc((string) ($stockChartUnit ?? '')) ?></small>
                     </div>

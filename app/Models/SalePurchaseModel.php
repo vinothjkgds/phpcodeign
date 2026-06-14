@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Libraries\UnitConverter;
 use App\Traits\IsActiveTrait;
 use CodeIgniter\Model;
 
@@ -9,10 +10,18 @@ class SalePurchaseModel extends Model
 {
     use IsActiveTrait;
 
+    protected UnitConverter $unitConverter;
+
     protected $table = 'merchant_ledger';
     protected $primaryKey = 'ledger_id';
     protected $protectFields = false;
     protected $useTimestamps = true;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->unitConverter = new UnitConverter();
+    }
 
     public function addEntry(array $data)
     {
@@ -64,7 +73,7 @@ class SalePurchaseModel extends Model
                 }
 
                 $productStockUnit = (string) ($product['stock_unit'] ?? '');
-                $convertedWeightForStock = $this->convertWeightToUnit($weight, $weightUnit, $productStockUnit);
+                $convertedWeightForStock = $this->convertWeightToUnit($shopId, $weight, $weightUnit, $productStockUnit);
                 if ($convertedWeightForStock === null) {
                     throw new \RuntimeException('Cannot convert weight unit from ' . $weightUnit . ' to ' . $productStockUnit . '.');
                 }
@@ -130,41 +139,15 @@ class SalePurchaseModel extends Model
         }
     }
 
-    private function convertWeightToUnit(float $value, string $fromUnit, string $toUnit): ?float
+    private function convertWeightToUnit(int $shopId, float $value, string $fromUnit, string $toUnit): ?float
     {
-        $from = strtolower(trim($fromUnit));
-        $to = strtolower(trim($toUnit));
-
-        if ($from === '' || $to === '') {
-            return null;
-        }
-
-        if ($from === $to) {
-            return $value;
-        }
-
-        $massUnitToGram = [
-            'milligram' => 0.001,
-            'gram' => 1,
-            'kilogram' => 1000,
-            'tola' => 11.6638038,
-            'ounce' => 28.349523125,
-        ];
-
-        if (!isset($massUnitToGram[$from], $massUnitToGram[$to])) {
-            return null;
-        }
-
-        $valueInGram = $value * $massUnitToGram[$from];
-        $converted = $valueInGram / $massUnitToGram[$to];
-
-        return round($converted, 6);
+        return $this->unitConverter->convert($shopId, $value, $fromUnit, $toUnit);
     }
 
     public function getSalePurchaseListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' l');
-        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, m.merchant_name, p.product_name,
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, COALESCE(su.unit_symbol, l.weight_unit) AS weight_unit_label, l.purity, l.amount, l.receivable_delta, m.merchant_name, p.product_name,
             (
                 SELECT COALESCE(SUM(ml.receivable_delta), 0)
                 FROM merchant_ledger ml
@@ -177,7 +160,9 @@ class SalePurchaseModel extends Model
             ) AS current_receivable_balance");
         $builder->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
         $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->join('stock_units su', 'su.shop_id = l.shop_id AND su.unit_code = l.weight_unit', 'left');
         $builder->where('l.shop_id', $shopId);
+        $builder->where('l.is_active', 1);
 
         $this->applyFilters($builder, $postData);
 
@@ -244,8 +229,8 @@ class SalePurchaseModel extends Model
             $weightText = '-';
             if ($row->weight !== null) {
                 $weightText = rtrim(rtrim(number_format((float) $row->weight, 3, '.', ''), '0'), '.');
-                if (!empty($row->weight_unit)) {
-                    $weightText .= ' ' . $this->shortUnitLabel((string) $row->weight_unit);
+                if (!empty($row->weight_unit_label)) {
+                    $weightText .= ' ' . (string) $row->weight_unit_label;
                 }
             }
 
@@ -270,6 +255,7 @@ class SalePurchaseModel extends Model
 
         $total = $this->db->table($this->table)
             ->where('shop_id', $shopId)
+            ->where('is_active', 1)
             ->whereIn('entry_type', ['opening', 'sale', 'purchase', 'payment_received', 'payment_paid'])
             ->countAllResults();
 
@@ -277,6 +263,7 @@ class SalePurchaseModel extends Model
         $builderCount->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
         $builderCount->join('products p', 'p.product_id = l.product_id', 'left');
         $builderCount->where('l.shop_id', $shopId);
+        $builderCount->where('l.is_active', 1);
         $this->applyFilters($builderCount, $postData);
 
         if (!empty($postData['search']['value'])) {
@@ -303,7 +290,7 @@ class SalePurchaseModel extends Model
     public function getSalePurchaseExportRows(array $filters, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' l');
-        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, m.merchant_name, p.product_name,
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, COALESCE(su.unit_symbol, l.weight_unit) AS weight_unit_label, l.purity, l.amount, l.receivable_delta, m.merchant_name, p.product_name,
             (
                 SELECT COALESCE(SUM(ml.receivable_delta), 0)
                 FROM merchant_ledger ml
@@ -316,7 +303,9 @@ class SalePurchaseModel extends Model
             ) AS current_receivable_balance");
         $builder->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
         $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->join('stock_units su', 'su.shop_id = l.shop_id AND su.unit_code = l.weight_unit', 'left');
         $builder->where('l.shop_id', $shopId);
+        $builder->where('l.is_active', 1);
 
         $this->applyFilters($builder, $filters);
 
@@ -386,7 +375,7 @@ class SalePurchaseModel extends Model
     public function getInvoiceByLedgerId(int $shopId, int $ledgerId): ?array
     {
         $builder = $this->db->table($this->table . ' l');
-        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, l.purity, l.amount, l.receivable_delta, l.payable_delta,
+        $builder->select("l.ledger_id, l.entry_date, l.entry_type, l.txn_ref, l.description, l.weight, l.weight_unit, COALESCE(su.unit_symbol, l.weight_unit) AS weight_unit_label, l.purity, l.amount, l.receivable_delta, l.payable_delta,
             m.merchant_name, m.phone AS merchant_phone, m.email AS merchant_email, m.gstin AS merchant_gstin, m.personal_address, m.shop_address,
             p.product_name,
             s.shop_name, s.owner_name, s.mobile_no AS shop_mobile_no, s.email AS shop_email, s.address AS shop_address_full, s.gstin AS shop_gstin,
@@ -402,24 +391,13 @@ class SalePurchaseModel extends Model
             ) AS current_receivable_balance");
         $builder->join('merchants m', 'm.merchant_id = l.merchant_id', 'inner');
         $builder->join('products p', 'p.product_id = l.product_id', 'left');
+        $builder->join('stock_units su', 'su.shop_id = l.shop_id AND su.unit_code = l.weight_unit', 'left');
         $builder->join('shops s', 's.shop_id = l.shop_id', 'inner');
         $builder->where('l.shop_id', $shopId);
         $builder->where('l.ledger_id', $ledgerId);
 
         $row = $builder->get()->getRowArray();
         return $row ?: null;
-    }
-
-    private function shortUnitLabel(string $unit): string
-    {
-        return match (strtolower(trim($unit))) {
-            'kilogram' => 'kg',
-            'gram' => 'gm',
-            'milligram' => 'mg',
-            'tola' => 'tola',
-            'ounce' => 'oz',
-            default => $unit,
-        };
     }
 
     private function formatListDateTime(?string $dateTime): string

@@ -3,16 +3,19 @@
 namespace App\Controllers;
 
 use App\Models\SalePurchaseModel;
+use App\Models\StockUnitModel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
 class Salepurchase extends BaseController
 {
     protected $salePurchaseModel;
+    protected $stockUnitModel;
 
     public function __construct()
     {
         $this->salePurchaseModel = new SalePurchaseModel();
+        $this->stockUnitModel = new StockUnitModel();
         helper(['form', 'url']);
     }
 
@@ -36,10 +39,16 @@ class Salepurchase extends BaseController
             return redirect()->to(site_url('dashboard'))->with('error', 'Unable to identify current shop.');
         }
 
+        $stockUnits = $this->stockUnitModel->getUnitsForDropdown($shopId);
+        if (empty($stockUnits)) {
+            return redirect()->to(site_url('stockunit/add'))->with('error', 'Please configure stock units and base unit before adding sale/purchase entries.');
+        }
+
         return view('index', [
             'body_content' => 'salepurchase/add',
             'merchants' => $this->salePurchaseModel->getActiveMerchants($shopId),
             'products' => $this->salePurchaseModel->getActiveProducts($shopId),
+            'stockUnits' => $stockUnits,
         ]);
     }
 
@@ -54,7 +63,7 @@ class Salepurchase extends BaseController
             $entryType = trim((string) $this->request->getPost('entry_type'));
             $requiresWeight = in_array($entryType, ['sale', 'purchase'], true);
             $weightRule = $requiresWeight ? 'required|numeric|greater_than[0]' : 'permit_empty|numeric|greater_than[0]';
-            $weightUnitRule = $requiresWeight ? 'required|in_list[gram,kilogram,milligram,tola,ounce,other]' : 'permit_empty|in_list[gram,kilogram,milligram,tola,ounce,other]';
+            $weightUnitRule = $requiresWeight ? 'required|max_length[50]' : 'permit_empty|max_length[50]';
 
             $validation = \Config\Services::validation();
             $validation->setRules([
@@ -131,8 +140,12 @@ class Salepurchase extends BaseController
 
             $productId = (int) ($this->request->getPost('product_id') ?: 0);
             $weightInput = trim((string) $this->request->getPost('weight'));
-            $weightUnitInput = trim((string) $this->request->getPost('weight_unit'));
+            $weightUnitInput = strtolower(trim((string) $this->request->getPost('weight_unit')));
             $weightValue = $weightInput !== '' ? (float) $weightInput : null;
+
+            if ($requiresWeight && !$this->stockUnitModel->isUnitCodeActiveForShop($shopId, $weightUnitInput)) {
+                return $this->respondSave(false, 'Please select a valid unit for this shop.', null, ['weight_unit' => 'Please select a valid unit for this shop.'], 422);
+            }
 
             if ($requiresWeight) {
                 if ($productId <= 0) {
@@ -469,7 +482,7 @@ class Salepurchase extends BaseController
                 $productId = $productMap[$productKey];
             }
 
-            [$weight, $weightUnit] = $this->parseWeightAndUnit($weightRaw);
+            [$weight, $weightUnit] = $this->parseWeightAndUnit($weightRaw, $shopId);
 
             $txnRef = trim($refRaw);
             $description = trim($descriptionRaw);
@@ -560,8 +573,10 @@ class Salepurchase extends BaseController
         $weightText = '-';
         if ($row['weight'] !== null) {
             $weightText = rtrim(rtrim(number_format((float) $row['weight'], 3, '.', ''), '0'), '.');
-            if (!empty($row['weight_unit'])) {
-                $weightText .= ' ' . ucfirst((string) $row['weight_unit']);
+            if (!empty($row['weight_unit_label'])) {
+                $weightText .= ' ' . (string) $row['weight_unit_label'];
+            } elseif (!empty($row['weight_unit'])) {
+                $weightText .= ' ' . (string) $row['weight_unit'];
             }
         }
 
@@ -627,7 +642,7 @@ class Salepurchase extends BaseController
         return (float) $normalized;
     }
 
-    private function parseWeightAndUnit(string $weightRaw): array
+    private function parseWeightAndUnit(string $weightRaw, int $shopId): array
     {
         $value = trim($weightRaw);
         if ($value === '' || $value === '-') {
@@ -641,12 +656,32 @@ class Salepurchase extends BaseController
         }
 
         $unit = isset($parts[1]) ? strtolower(trim((string) $parts[1])) : null;
-        $allowedUnits = ['gram', 'kilogram', 'milligram', 'tola', 'ounce', 'other'];
-        if ($unit !== null && $unit !== '' && !in_array($unit, $allowedUnits, true)) {
-            $unit = null;
+        if ($unit !== null && $unit !== '') {
+            $unit = $this->resolveUnitCodeForShop($shopId, $unit);
         }
 
         return [$weight, $unit ?: null];
+    }
+
+    private function resolveUnitCodeForShop(int $shopId, string $rawUnit): ?string
+    {
+        $normalized = strtolower(trim($rawUnit));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $units = $this->stockUnitModel->getActiveUnits($shopId);
+        foreach ($units as $unit) {
+            $code = strtolower(trim((string) ($unit['unit_code'] ?? '')));
+            $symbol = strtolower(trim((string) ($unit['unit_symbol'] ?? '')));
+            $name = strtolower(trim((string) ($unit['unit_name'] ?? '')));
+
+            if ($normalized === $code || ($symbol !== '' && $normalized === $symbol) || ($name !== '' && $normalized === $name)) {
+                return $code;
+            }
+        }
+
+        return null;
     }
 
     private function isCsvRowEmpty(array $row): bool

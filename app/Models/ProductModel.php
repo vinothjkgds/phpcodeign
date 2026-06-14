@@ -52,7 +52,8 @@ class ProductModel extends Model
     public function getProductListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table($this->table . ' p');
-        $builder->select('p.product_id, p.product_name, p.product_image, p.category, p.current_stock, p.stock_unit, p.reorder_level, p.is_active, p.created_at');
+        $builder->select('p.product_id, p.product_name, p.product_image, p.category, p.current_stock, p.stock_unit, COALESCE(su.unit_symbol, p.stock_unit) AS stock_unit_label, p.reorder_level, p.is_active, p.created_at');
+        $builder->join('stock_units su', 'su.shop_id = p.shop_id AND su.unit_code = p.stock_unit', 'left');
         $builder->where('p.shop_id', $shopId);
         $builder->where('p.is_active', true);
 
@@ -98,7 +99,7 @@ class ProductModel extends Model
                 $stockStatus = 'LOW';
                 $stockBadgeClass = 'badge-warning';
             }
-            $stockUnitLabel = $this->shortUnitLabel((string) ($row->stock_unit ?? ''));
+            $stockUnitLabel = (string) ($row->stock_unit_label ?? $row->stock_unit ?? '');
             $stockBadge = '<span class="badge ' . $stockBadgeClass . '">' . number_format($row->current_stock, 3) . ' ' . esc($stockUnitLabel) . '</span>';
 
             $productImage = '-';
@@ -152,8 +153,9 @@ class ProductModel extends Model
     public function getStockHistoryListDT(array $postData, int $shopId): array
     {
         $builder = $this->db->table('product_stock_history sh');
-        $builder->select('sh.history_id, sh.created_at, sh.movement_type, sh.quantity, sh.stock_unit, sh.stock_before, sh.stock_after, sh.txn_ref, sh.notes, p.product_name');
+        $builder->select('sh.history_id, sh.created_at, sh.movement_type, sh.quantity, sh.stock_unit, COALESCE(su.unit_symbol, sh.stock_unit) AS stock_unit_label, sh.stock_before, sh.stock_after, sh.txn_ref, sh.notes, p.product_name');
         $builder->join('products p', 'p.product_id = sh.product_id', 'inner');
+        $builder->join('stock_units su', 'su.shop_id = sh.shop_id AND su.unit_code = sh.stock_unit', 'left');
         $builder->where('sh.shop_id', $shopId);
 
         $productId = (int) ($postData['filter_product_id'] ?? 0);
@@ -218,9 +220,9 @@ class ProductModel extends Model
                 'created_at' => $this->formatListDateTime($row->created_at ?? null),
                 'product_name' => esc((string) ($row->product_name ?? '-')),
                 'movement_type' => '<span class="badge ' . $badgeClass . '">' . esc($movementLabel) . '</span>',
-                'quantity' => number_format((float) ($row->quantity ?? 0), 3) . ' ' . esc($this->shortUnitLabel((string) ($row->stock_unit ?? ''))),
-                'stock_before' => number_format((float) ($row->stock_before ?? 0), 3) . ' ' . esc($this->shortUnitLabel((string) ($row->stock_unit ?? ''))),
-                'stock_after' => number_format((float) ($row->stock_after ?? 0), 3) . ' ' . esc($this->shortUnitLabel((string) ($row->stock_unit ?? ''))),
+                'quantity' => number_format((float) ($row->quantity ?? 0), 3) . ' ' . esc((string) ($row->stock_unit_label ?? $row->stock_unit ?? '')),
+                'stock_before' => number_format((float) ($row->stock_before ?? 0), 3) . ' ' . esc((string) ($row->stock_unit_label ?? $row->stock_unit ?? '')),
+                'stock_after' => number_format((float) ($row->stock_after ?? 0), 3) . ' ' . esc((string) ($row->stock_unit_label ?? $row->stock_unit ?? '')),
                 'txn_ref' => esc((string) ($row->txn_ref ?? '-')),
                 'notes' => esc((string) ($row->notes ?? '-')),
             ];
@@ -267,7 +269,8 @@ class ProductModel extends Model
     public function getStockHistoryByProduct(int $shopId, int $productId, int $limit = 500): array
     {
         return $this->db->table('product_stock_history sh')
-            ->select('sh.history_id, sh.created_at, sh.movement_type, sh.quantity, sh.stock_unit, sh.stock_before, sh.stock_after, sh.txn_ref, sh.notes')
+            ->select('sh.history_id, sh.created_at, sh.movement_type, sh.quantity, sh.stock_unit, COALESCE(su.unit_symbol, sh.stock_unit) AS stock_unit_label, sh.stock_before, sh.stock_after, sh.txn_ref, sh.notes')
+            ->join('stock_units su', 'su.shop_id = sh.shop_id AND su.unit_code = sh.stock_unit', 'left')
             ->where('sh.shop_id', $shopId)
             ->where('sh.product_id', $productId)
             ->orderBy('sh.created_at', 'DESC')
@@ -275,20 +278,6 @@ class ProductModel extends Model
             ->limit($limit)
             ->get()
             ->getResultArray();
-    }
-
-    private function shortUnitLabel(string $unit): string
-    {
-        return match (strtolower(trim($unit))) {
-            'kilogram' => 'kg',
-            'gram' => 'gm',
-            'milligram' => 'mg',
-            'tola' => 'tola',
-            'ounce' => 'oz',
-            'piece' => 'pc',
-            'liter' => 'ltr',
-            default => $unit,
-        };
     }
 
     private function formatListDateTime(?string $dateTime): string

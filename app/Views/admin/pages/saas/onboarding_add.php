@@ -8,7 +8,7 @@
                     <div class="alert alert-danger"><?= esc((string) session()->getFlashdata('error')) ?></div>
                 <?php endif; ?>
 
-                <form method="post" action="<?= site_url('saas/onboarding/save') ?>">
+                <form id="addOnboarding" method="post" action="<?= site_url('saas/onboarding/save') ?>">
                     <?= csrf_field() ?>
                     <div class="row">
                         <div class="col-md-6">
@@ -32,7 +32,7 @@
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label>Owner Mobile</label>
-                                <input type="text" name="owner_mobile" class="form-control" value="<?= esc((string) old('owner_mobile')) ?>">
+                                <input type="text" name="owner_mobile" class="form-control" value="<?= esc((string) old('owner_mobile')) ?>" maxlength="10" inputmode="numeric" pattern="[6-9][0-9]{9}" title="Enter a valid 10-digit Indian mobile number" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" required>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -67,7 +67,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Create Onboarding</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">Create Onboarding</button>
                     <a href="<?= site_url('saas/onboarding') ?>" class="btn btn-light">Back</a>
                 </form>
             </div>

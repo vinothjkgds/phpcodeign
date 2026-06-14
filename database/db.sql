@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS shop_onboarding;
 DROP TABLE IF EXISTS saas_users;
 DROP TABLE IF EXISTS product_stock_history;
 DROP TABLE IF EXISTS merchant_ledger;
+DROP TABLE IF EXISTS stock_units;
 DROP TABLE IF EXISTS merchants;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS users;
@@ -35,7 +36,7 @@ CREATE TABLE saas_users (
 
 INSERT INTO saas_users (name, email, password_hash, role, is_active)
 VALUES
-('SaaS Admin', 'admin@saas.local', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', 'super_admin', TRUE);
+('SaaS Admin', 'admin@saas.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', 'super_admin', TRUE);
 
 -- =============================================
 -- SHOP
@@ -113,6 +114,41 @@ VALUES (
     '1/2E, SRI Raa Complex 1st Floor, Mettukamala Street, South Avani Moola Street, Madurai - 625001, Tamil Nadu',
     '33AAHFH3055M1ZB'
 );
+
+-- =============================================
+-- STOCK UNITS (Shop-scoped, conversion-aware)
+-- factor_to_base: multiply unit value by this to convert into shop base unit
+-- base unit has factor_to_base = 1 and is_base = TRUE
+-- =============================================
+CREATE TABLE stock_units (
+    unit_id INT AUTO_INCREMENT PRIMARY KEY,
+    reference_code CHAR(36) NOT NULL UNIQUE DEFAULT (UUID()),
+    shop_id INT NOT NULL,
+    unit_name VARCHAR(100) NOT NULL,
+    unit_code VARCHAR(50) NOT NULL,
+    unit_symbol VARCHAR(20) NULL,
+    unit_type ENUM('mass','volume','count','other') NOT NULL DEFAULT 'mass',
+    factor_to_base DECIMAL(20,8) NOT NULL DEFAULT 1.00000000,
+    is_base BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_stock_units_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
+    UNIQUE KEY uq_stock_units_shop_code (shop_id, unit_code),
+    INDEX idx_stock_units_shop_active (shop_id, is_active),
+    INDEX idx_stock_units_shop_base (shop_id, is_base)
+);
+
+INSERT INTO stock_units (shop_id, unit_name, unit_code, unit_symbol, unit_type, factor_to_base, is_base, is_active)
+VALUES
+(1, 'Gram', 'gram', 'gm', 'mass', 1.00000000, TRUE, TRUE),
+(1, 'Kilogram', 'kilogram', 'kg', 'mass', 1000.00000000, FALSE, TRUE),
+(1, 'Milligram', 'milligram', 'mg', 'mass', 0.00100000, FALSE, TRUE),
+(1, 'Tola', 'tola', 'tola', 'mass', 11.66380380, FALSE, TRUE),
+(1, 'Ounce', 'ounce', 'oz', 'mass', 28.34952313, FALSE, TRUE),
+(1, 'Piece', 'piece', 'pc', 'count', 1.00000000, FALSE, TRUE),
+(1, 'Liter', 'liter', 'ltr', 'volume', 1.00000000, FALSE, TRUE),
+(1, 'Other', 'other', 'other', 'other', 1.00000000, FALSE, TRUE);
 -- =============================================
 -- LOGIN USERS (compatible with current Auth.php)
 -- required columns: reference_code, name, email, password_hash, user_type, is_active
@@ -144,10 +180,7 @@ CREATE TABLE users (
 
 INSERT INTO users (shop_id, name, email, password_hash, mobileno, user_type, is_active)
 VALUES
-(1, 'Vijayakumar', 'owner@harinijewellers.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', '8220466675', 'owner', TRUE),
-(1, 'Nadhiya', 'manager@harinijewellers.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', '8220466001', 'manager', TRUE),
-(1, 'Vinoth', 'vinoth@harinijewellers.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', '8220466002', 'staff', TRUE),
-(1, 'Priya', 'priya@harinijewellers.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', '8220466003', 'staff', TRUE);
+(1, 'Vinoth Kumar', 'vinoth@gmail.com', '$2y$12$rouSEK7XMLcJT/h.dnh3FuWIwYf/aNz43mRxkjfPxAbqRigWFf1hW', '8220466675', 'owner', TRUE);
 
 -- =============================================
 -- PRODUCTS (with stock management)
@@ -159,7 +192,7 @@ CREATE TABLE products (
     product_image VARCHAR(500) NULL,
     category VARCHAR(50) NULL,
     current_stock DECIMAL(12,3) NOT NULL DEFAULT 0.000,
-    stock_unit ENUM('gram','kilogram','milligram','tola','ounce','piece','liter','other') NOT NULL DEFAULT 'gram',
+    stock_unit VARCHAR(50) NOT NULL,
     reorder_level DECIMAL(12,3) NOT NULL DEFAULT 100.000,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -213,7 +246,9 @@ CREATE TABLE merchants (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_merchants_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id)
+    CONSTRAINT fk_merchants_shop FOREIGN KEY (shop_id) REFERENCES shops(shop_id),
+    UNIQUE KEY uq_merchants_shop_email (shop_id, email),
+    UNIQUE KEY uq_merchants_shop_phone (shop_id, phone)
 );
 
 
@@ -232,7 +267,7 @@ CREATE TABLE merchant_ledger (
     product_id INT NULL,
     description VARCHAR(255) NULL,
     weight DECIMAL(12,3) NULL,
-    weight_unit ENUM('gram','kilogram','milligram','tola','ounce','other') NULL,
+    weight_unit VARCHAR(50) NULL,
     purity VARCHAR(20) NULL,
     amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     receivable_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -261,7 +296,7 @@ CREATE TABLE product_stock_history (
     product_id INT NOT NULL,
     movement_type ENUM('purchase','sale','adjustment','opening') NOT NULL,
     quantity DECIMAL(12,3) NOT NULL,
-    stock_unit ENUM('gram','kilogram','milligram','tola','ounce','piece','liter','other') NOT NULL,
+    stock_unit VARCHAR(50) NOT NULL,
     stock_before DECIMAL(12,3) NOT NULL,
     stock_after DECIMAL(12,3) NOT NULL,
     reference_type ENUM('merchant_ledger','manual','system') NULL,

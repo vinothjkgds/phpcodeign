@@ -27,8 +27,10 @@ $merchantAddress = (string) ($invoiceData['personal_address'] ?? $invoiceData['s
 $weightText = '-';
 if (isset($invoiceData['weight']) && $invoiceData['weight'] !== null) {
     $weightText = rtrim(rtrim(number_format((float) $invoiceData['weight'], 3, '.', ''), '0'), '.');
-    if (!empty($invoiceData['weight_unit'])) {
-        $weightText .= ' ' . ucfirst((string) $invoiceData['weight_unit']);
+    if (!empty($invoiceData['weight_unit_label'])) {
+        $weightText .= ' ' . (string) $invoiceData['weight_unit_label'];
+    } elseif (!empty($invoiceData['weight_unit'])) {
+        $weightText .= ' ' . (string) $invoiceData['weight_unit'];
     }
 }
 

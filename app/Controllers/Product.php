@@ -2,8 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Libraries\UnitConverter;
 use App\Models\CategoryModel;
 use App\Models\ProductModel;
+use App\Models\StockUnitModel;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -11,11 +13,15 @@ class Product extends BaseController
 {
     protected $productModel;
     protected $categoryModel;
+    protected $stockUnitModel;
+    protected $unitConverter;
 
     public function __construct()
     {
         $this->productModel = new ProductModel();
         $this->categoryModel = new CategoryModel();
+        $this->stockUnitModel = new StockUnitModel();
+        $this->unitConverter = new UnitConverter();
         helper(['form', 'url']);
     }
 
@@ -48,9 +54,15 @@ class Product extends BaseController
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Unable to identify current shop.']);
         }
 
+        $stockUnits = $this->stockUnitModel->getUnitsForDropdown($shopId);
+        if (empty($stockUnits)) {
+            return redirect()->to(site_url('stockunit/add'))->with('error', 'Please configure stock units and base unit before creating products.');
+        }
+
         return view('index', [
             'body_content' => 'product/add',
             'categories' => $this->categoryModel->getCategoryOptions($shopId),
+            'stockUnits' => $stockUnits,
         ]);
     }
 
@@ -66,10 +78,16 @@ class Product extends BaseController
             return $this->response->setStatusCode(404)->setJSON(['status' => false, 'message' => 'Product not found']);
         }
 
+        $stockUnits = $this->stockUnitModel->getUnitsForDropdown($shopId, false, (string) ($productInfo->stock_unit ?? ''));
+        if (empty($stockUnits)) {
+            return redirect()->to(site_url('stockunit/add'))->with('error', 'Please configure stock units and base unit before editing products.');
+        }
+
         return view('index', [
             'body_content' => 'product/edit',
             'productInfo' => $productInfo,
             'categories' => $this->getProductCategoryOptions($shopId, (string) ($productInfo->category ?? '')),
+            'stockUnits' => $stockUnits,
         ]);
     }
 
@@ -89,7 +107,7 @@ class Product extends BaseController
 
         $historyRows = [];
         foreach ($rawHistoryRows as $row) {
-            $unitLabel = $this->shortUnitLabel((string) ($row['stock_unit'] ?? ''));
+            $unitLabel = (string) ($row['stock_unit_label'] ?? $this->shortUnitLabel((string) ($row['stock_unit'] ?? '')));
             $historyRows[] = [
                 'history_id' => (int) ($row['history_id'] ?? 0),
                 'created_at' => $this->formatListDateTime($row['created_at'] ?? null),
@@ -118,6 +136,7 @@ class Product extends BaseController
             'stockChartLabels' => $stockChartLabels,
             'stockChartValues' => $stockChartValues,
             'stockChartUnit' => $this->shortUnitLabel((string) ($productInfo->stock_unit ?? '')),
+            'stockUnits' => $this->stockUnitModel->getUnitsForDropdown($shopId, true, (string) ($productInfo->stock_unit ?? '')),
         ]);
     }
 
@@ -190,10 +209,10 @@ class Product extends BaseController
                     ],
                 ],
                 'stock_unit' => [
-                    'rules' => 'required|in_list[gram,kilogram,milligram,tola,ounce,piece,liter,other]',
+                    'rules' => 'required|max_length[50]',
                     'errors' => [
                         'required' => 'Stock unit is required.',
-                        'in_list' => 'Please select a valid stock unit.',
+                        'max_length' => 'Stock unit is invalid.',
                     ],
                 ],
                 'reorder_level' => [
@@ -221,19 +240,58 @@ class Product extends BaseController
                 return $this->respondProductSave(false, 'Invalid product image upload.', null, ['product_image' => 'Invalid product image upload.'], 422);
             }
 
+            $baseUnit = $this->stockUnitModel->getBaseUnit($shopId);
+            $fallbackUnitCode = strtolower(trim((string) ($baseUnit['unit_code'] ?? '')));
+            $selectedStockUnit = trim((string) ($this->request->getPost('stock_unit') ?? $fallbackUnitCode)) ?: $fallbackUnitCode;
+            if ($selectedStockUnit === '') {
+                return $this->respondProductSave(false, 'No stock unit configured for this shop. Please create a stock unit first.', site_url('stockunit'), ['stock_unit' => 'No stock unit configured for this shop.'], 422);
+            }
+            if (!$this->stockUnitModel->isUnitCodeActiveForShop($shopId, $selectedStockUnit)) {
+                return $this->respondProductSave(false, 'Please select a valid stock unit for this shop.', null, ['stock_unit' => 'Please select a valid stock unit for this shop.'], 422);
+            }
+
             $data = [
                 'shop_id' => $shopId,
                 'product_name' => trim((string) $this->request->getPost('product_name')),
                 'category' => $categoryName !== '' ? $categoryName : null,
                 'current_stock' => (float) ($this->request->getPost('current_stock') ?? 0),
-                'stock_unit' => trim((string) ($this->request->getPost('stock_unit') ?? 'gram')) ?: 'gram',
+                'stock_unit' => $selectedStockUnit,
                 'reorder_level' => (float) ($this->request->getPost('reorder_level') ?? 100),
                 'is_active' => $this->request->getPost('is_active') ? true : false,
             ];
 
             if ($productId !== '') {
+                $existingStockUnit = strtolower(trim((string) ($existingProduct->stock_unit ?? 'gram')));
+                $requestedStockUnit = strtolower(trim((string) $selectedStockUnit));
+
                 // Current stock is managed via adjustStock flow to keep stock history accurate.
-                $data['current_stock'] = (float) ($existingProduct->current_stock ?? 0);
+                // If stock unit changes, convert existing stock to the requested unit.
+                $existingCurrentStock = (float) ($existingProduct->current_stock ?? 0);
+                if ($existingStockUnit !== $requestedStockUnit) {
+                    $convertedCurrentStock = $this->unitConverter->convert($shopId, $existingCurrentStock, $existingStockUnit, $requestedStockUnit);
+                    if ($convertedCurrentStock === null) {
+                        return $this->respondProductSave(
+                            false,
+                            'Cannot convert current stock from ' . $existingStockUnit . ' to ' . $requestedStockUnit . '.',
+                            null,
+                            ['stock_unit' => 'Selected stock unit is not compatible with current stock unit.'],
+                            422
+                        );
+                    }
+                    $data['current_stock'] = $convertedCurrentStock;
+
+                    $existingReorderLevel = (float) ($existingProduct->reorder_level ?? 0);
+                    $submittedReorderLevel = (float) ($data['reorder_level'] ?? 0);
+                    if (abs($submittedReorderLevel - $existingReorderLevel) < 0.000001) {
+                        $convertedReorderLevel = $this->unitConverter->convert($shopId, $existingReorderLevel, $existingStockUnit, $requestedStockUnit);
+                        if ($convertedReorderLevel !== null) {
+                            $data['reorder_level'] = $convertedReorderLevel;
+                        }
+                    }
+                } else {
+                    $data['current_stock'] = $existingCurrentStock;
+                }
+
                 $data['product_image'] = $existingProduct->product_image ?? null;
             }
 
@@ -293,10 +351,10 @@ class Product extends BaseController
                     ],
                 ],
                 'adjustment_unit' => [
-                    'rules' => 'required|in_list[gram,kilogram,milligram,tola,ounce,piece,liter,other]',
+                    'rules' => 'required|max_length[50]',
                     'errors' => [
                         'required' => 'Adjustment unit is required.',
-                        'in_list' => 'Please select a valid adjustment unit.',
+                        'max_length' => 'Please select a valid adjustment unit.',
                     ],
                 ],
                 'adjustment_notes' => [
@@ -316,6 +374,10 @@ class Product extends BaseController
             $adjustmentUnit = strtolower(trim((string) ($this->request->getPost('adjustment_unit') ?? '')));
             $productUnit = strtolower(trim((string) ($product->stock_unit ?? '')));
             $notes = trim((string) ($this->request->getPost('adjustment_notes') ?? ''));
+
+            if (!$this->stockUnitModel->isUnitCodeActiveForShop($shopId, $adjustmentUnit)) {
+                return $this->response->setStatusCode(422)->setJSON(['status' => false, 'message' => 'Invalid adjustment unit for this shop.']);
+            }
 
             if ($adjustmentQty == 0.0) {
                 return $this->response->setStatusCode(422)->setJSON(['status' => false, 'message' => 'Adjustment quantity cannot be zero']);
@@ -586,47 +648,22 @@ class Product extends BaseController
 
     private function shortUnitLabel(string $unit): string
     {
-        return match (strtolower(trim($unit))) {
-            'kilogram' => 'kg',
-            'gram' => 'gm',
-            'milligram' => 'mg',
-            'tola' => 'tola',
-            'ounce' => 'oz',
-            'piece' => 'pc',
-            'liter' => 'ltr',
-            default => $unit,
-        };
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
+            return $unit;
+        }
+
+        return $this->stockUnitModel->getUnitLabelByCode($shopId, $unit);
     }
 
     private function convertStockQuantity(float $value, string $fromUnit, string $toUnit): ?float
     {
-        $from = strtolower(trim($fromUnit));
-        $to = strtolower(trim($toUnit));
-
-        if ($from === '' || $to === '') {
+        $shopId = $this->getCurrentShopId();
+        if ($shopId === null) {
             return null;
         }
 
-        if ($from === $to) {
-            return round($value, 6);
-        }
-
-        $massUnitToGram = [
-            'milligram' => 0.001,
-            'gram' => 1,
-            'kilogram' => 1000,
-            'tola' => 11.6638038,
-            'ounce' => 28.349523125,
-        ];
-
-        if (!isset($massUnitToGram[$from], $massUnitToGram[$to])) {
-            return null;
-        }
-
-        $valueInGram = $value * $massUnitToGram[$from];
-        $converted = $valueInGram / $massUnitToGram[$to];
-
-        return round($converted, 6);
+        return $this->unitConverter->convert($shopId, $value, $fromUnit, $toUnit);
     }
 
     private function getProductCategoryOptions(int $shopId, string $selectedCategory = ''): array

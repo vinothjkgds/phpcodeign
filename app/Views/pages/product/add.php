@@ -43,14 +43,19 @@
                             <div class="form-group">
                                 <label for="stock_unit">Stock Unit <span class="text-danger">*</span></label>
                                 <select class="form-select rounded-0" id="stock_unit" name="stock_unit" required>
-                                    <option value="gram" selected>gm</option>
-                                    <option value="kilogram">kg</option>
-                                    <option value="milligram">mg</option>
-                                    <option value="tola">Tola</option>
-                                    <option value="ounce">oz</option>
-                                    <option value="piece">pc</option>
-                                    <option value="liter">ltr</option>
-                                    <option value="other">Other</option>
+                                    <option value="">Select Stock Unit</option>
+                                    <?php foreach (($stockUnits ?? []) as $unit): ?>
+                                        <?php
+                                            $code = strtolower(trim((string) ($unit['unit_code'] ?? '')));
+                                            if ($code === '') {
+                                                continue;
+                                            }
+                                            $symbol = trim((string) ($unit['unit_symbol'] ?? ''));
+                                            $label = trim((string) ($unit['unit_name'] ?? $code));
+                                            $display = $symbol !== '' ? $symbol . ' - ' . $label : $label;
+                                        ?>
+                                        <option value="<?= esc($code) ?>" data-factor="<?= esc(number_format((float) ($unit['factor_to_base'] ?? 0), 8, '.', '')) ?>" data-unit-type="<?= esc((string) ($unit['unit_type'] ?? '')) ?>" <?= !empty($unit['is_base']) ? 'selected' : '' ?>><?= esc($display) ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>

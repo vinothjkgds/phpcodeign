@@ -39,6 +39,17 @@ if (typeof window.jQuery !== 'undefined' && window.jQuery.validator) {
                     }, 'Please enter a valid Indian mobile or landline number.');
                 }
 
+                if (!$.validator.methods.indianMobile) {
+                    $.validator.addMethod('indianMobile', function(value, element) {
+                        if (this.optional(element)) {
+                            return true;
+                        }
+
+                        var normalized = value.replace(/\D/g, '');
+                        return /^[6-9]\d{9}$/.test(normalized);
+                    }, 'Please enter a valid 10-digit Indian mobile number.');
+                }
+
                 if (!$.validator.methods.indianGstin) {
                     $.validator.addMethod('indianGstin', function(value, element) {
                         if (this.optional(element)) {
@@ -290,6 +301,101 @@ $(document).ready(function(){
 </script>
 <?php endif; ?>
 
+<?php if(trim(strtolower(current_controller())) == 'saasonboarding' && trim(strtolower(current_method())) == 'add'): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+            }
+
+            $('#addOnboarding').validate({
+                rules: {
+                    proposed_shop_name: {
+                        required: true,
+                        maxlength: 255
+                    },
+                    owner_name: {
+                        required: true,
+                        maxlength: 255
+                    },
+                    owner_email: {
+                        required: true,
+                        email: true,
+                        maxlength: 255
+                    },
+                    owner_mobile: {
+                        required: true,
+                        digits: true,
+                        minlength: 10,
+                        maxlength: 10,
+                        indianMobile: true
+                    },
+                    city: {
+                        maxlength: 100
+                    },
+                    state_name: {
+                        maxlength: 100
+                    },
+                    country: {
+                        maxlength: 100
+                    },
+                    gstin: {
+                        maxlength: 30,
+                        indianGstin: true
+                    },
+                    onboarding_notes: {
+                        maxlength: 2000
+                    }
+                },
+                messages: {
+                    proposed_shop_name: 'Please enter shop name',
+                    owner_name: 'Please enter owner name',
+                    owner_email: {
+                        required: 'Please enter owner email',
+                        email: 'Please enter a valid email address'
+                    },
+                    owner_mobile: {
+                        required: 'Please enter owner mobile number',
+                        digits: 'Only digits are allowed',
+                        minlength: 'Mobile number must be exactly 10 digits',
+                        maxlength: 'Mobile number must be exactly 10 digits',
+                        indianMobile: 'Please enter a valid 10-digit Indian mobile number'
+                    },
+                    gstin: {
+                        indianGstin: 'Please enter a valid GSTIN'
+                    }
+                },
+                errorPlacement: function(label, element) {
+                    if (window.AppFormValidation) {
+                        return window.AppFormValidation.defaultErrorPlacement(label, element);
+                    }
+                    label.insertAfter(element);
+                },
+                highlight: function(element) {
+                    if (window.AppFormValidation) {
+                        return window.AppFormValidation.defaultHighlight(element);
+                    }
+                    $(element).addClass('form-control-danger');
+                },
+                unhighlight: function(element) {
+                    if (window.AppFormValidation) {
+                        return window.AppFormValidation.defaultUnhighlight(element);
+                    }
+                    $(element).removeClass('form-control-danger');
+                }
+            });
+
+            $(document).on('input', 'input[name="owner_mobile"]', function() {
+                $(this).val(($(this).val() || '').replace(/\D/g, '').slice(0, 10));
+            });
+        });
+    })(window.jQuery);
+}
+</script>
+<?php endif; ?>
+
 <?php if(trim(strtolower(current_controller())) == 'category' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
 <script>
 if (typeof window.jQuery !== 'undefined') {
@@ -376,11 +482,92 @@ $(document).ready(function(){
 <script>
 if (typeof window.jQuery !== 'undefined') {
     (function($){
+        function getUnitMetaFromOption(option) {
+            if (!option || !option.length) {
+                return null;
+            }
+
+            var factor = parseFloat(option.attr('data-factor') || '0') || 0;
+            var unitType = (option.attr('data-unit-type') || '').toLowerCase().trim();
+            var code = (option.val() || '').toLowerCase().trim();
+            if (!code || !unitType || factor <= 0) {
+                return null;
+            }
+
+            return {
+                code: code,
+                unitType: unitType,
+                factor: factor
+            };
+        }
+
+        function findUnitMetaByCode($select, code) {
+            var normalized = (code || '').toLowerCase().trim();
+            if (!normalized) {
+                return null;
+            }
+
+            var matched = $select.find('option').filter(function() {
+                return (($(this).val() || '').toLowerCase().trim() === normalized);
+            }).first();
+
+            return getUnitMetaFromOption(matched);
+        }
+
+        function convertUnitValue(value, fromUnit, toUnit) {
+            var fromMeta = findUnitMetaByCode($('#stock_unit'), fromUnit);
+            var toMeta = findUnitMetaByCode($('#stock_unit'), toUnit);
+
+            if (!fromMeta || !toMeta) {
+                return null;
+            }
+
+            if (fromMeta.code === toMeta.code) {
+                return value;
+            }
+
+            if (fromMeta.unitType !== toMeta.unitType) {
+                return null;
+            }
+
+            var valueInBase = value * fromMeta.factor;
+            return valueInBase / toMeta.factor;
+        }
+
         $(document).ready(function(){
             var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
             var formSelector = isEdit ? '#editProduct' : '#addProduct';
             var submitText = isEdit ? 'Update' : 'Submit';
             var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            var $stockUnit = $('#stock_unit');
+            var $currentStock = $('#current_stock');
+            var $reorderLevel = $('#reorder_level');
+            var previousUnit = ($stockUnit.val() || '').toLowerCase().trim();
+
+            $stockUnit.on('change', function() {
+                var nextUnit = ($(this).val() || '').toLowerCase().trim();
+                if (!nextUnit || !previousUnit || nextUnit === previousUnit) {
+                    previousUnit = nextUnit || previousUnit;
+                    return;
+                }
+
+                var currentStockValue = parseFloat($currentStock.val() || '0') || 0;
+                var reorderValue = parseFloat($reorderLevel.val() || '0') || 0;
+
+                var convertedCurrentStock = convertUnitValue(currentStockValue, previousUnit, nextUnit);
+                var convertedReorder = convertUnitValue(reorderValue, previousUnit, nextUnit);
+
+                if (convertedCurrentStock === null || convertedReorder === null) {
+                    alert('Cannot convert selected stock unit from ' + previousUnit + ' to ' + nextUnit + '.');
+                    $stockUnit.val(previousUnit);
+                    return;
+                }
+
+                $currentStock.val(convertedCurrentStock.toFixed(3));
+                $reorderLevel.val(convertedReorder.toFixed(3));
+                previousUnit = nextUnit;
+            });
 
             if (window.AppFormValidation) {
                 window.AppFormValidation.initCustomMethods();
@@ -430,6 +617,98 @@ if (typeof window.jQuery !== 'undefined') {
     })(window.jQuery);
 } else {
     console.error('jQuery is not loaded. Check vendor.bundle.base.js path.');
+}
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'stockunit' && trim(strtolower(current_method())) == 'index'): ?>
+<script>
+var stockUnitTable;
+$(document).ready(function(){
+    stockUnitTable = $('#stockUnitTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "<?= site_url('stockunit/getStockUnitListJson') ?>",
+            type: 'POST'
+        },
+        columns: [
+            { data: 'unit_name' },
+            { data: 'unit_code' },
+            { data: 'unit_symbol' },
+            { data: 'unit_type' },
+            { data: 'factor_to_base' },
+            { data: 'is_base' },
+            { data: 'is_active' },
+            { data: 'created_at' },
+            { data: 'action' }
+        ],
+        order: [[0, 'asc']],
+        columnDefs: [
+            { orderable: false, targets: [8] }
+        ]
+    });
+
+    $(document).on('click', '.deleteStockUnit', function(){
+        var unitRefCode = $(this).data('id');
+        if (confirm('Are you sure you want to delete this stock unit?')) {
+            $.ajax({
+                url: '<?= site_url("stockunit/delete") ?>/' + unitRefCode,
+                type: 'POST',
+                success: function(response){
+                    alert(response.message);
+                    stockUnitTable.ajax.reload(null, false);
+                },
+                error: function(xhr){
+                    var resp = xhr.responseJSON;
+                    alert(resp?.message || 'Error deleting stock unit.');
+                }
+            });
+        }
+    });
+});
+</script>
+<?php endif; ?>
+
+<?php if(trim(strtolower(current_controller())) == 'stockunit' && (trim(strtolower(current_method())) == 'add' || trim(strtolower(current_method())) == 'edit')): ?>
+<script>
+if (typeof window.jQuery !== 'undefined') {
+    (function($){
+        $(document).ready(function(){
+            var isEdit = '<?= trim(strtolower(current_method())) ?>' === 'edit';
+            var formSelector = isEdit ? '#editStockUnit' : '#addStockUnit';
+            var submitText = isEdit ? 'Update' : 'Submit';
+            var loadingText = isEdit ? 'Updating...' : 'Submitting...';
+
+            if (window.AppFormValidation) {
+                window.AppFormValidation.initCustomMethods();
+                window.AppFormValidation.bindAjaxSubmit(formSelector, {
+                    submitButtonSelector: '#submitBtn',
+                    submitText: submitText,
+                    loadingText: loadingText,
+                    rules: {
+                        unit_name: { required: true, maxlength: 100 },
+                        unit_code: { required: true, maxlength: 50 },
+                        unit_symbol: { maxlength: 20 },
+                        unit_type: { required: true },
+                        factor_to_base: { required: true, number: true, min: 0.00000001 }
+                    },
+                    messages: {
+                        unit_name: 'Please enter unit name',
+                        unit_code: 'Unit code must contain only lowercase letters, numbers, and underscore',
+                        unit_symbol: 'Unit symbol cannot exceed 20 characters',
+                        unit_type: 'Please select unit type',
+                        factor_to_base: 'Please enter valid conversion factor (> 0)'
+                    }
+                });
+            }
+
+            $(document).on('input', '#unit_code', function() {
+                var normalized = ($(this).val() || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+                $(this).val(normalized);
+            });
+        });
+    })(window.jQuery);
 }
 </script>
 <?php endif; ?>
@@ -967,35 +1246,51 @@ if (typeof window.jQuery !== 'undefined') {
                 return value;
             }
 
-            var massUnitToGram = {
-                milligram: 0.001,
-                gram: 1,
-                kilogram: 1000,
-                tola: 11.6638038,
-                ounce: 28.349523125
-            };
+            function getMetaByCode(code) {
+                var option = $('#weight_unit option').filter(function() {
+                    return (($(this).val() || '').toLowerCase().trim() === code);
+                }).first();
 
-            if (typeof massUnitToGram[from] === 'undefined' || typeof massUnitToGram[to] === 'undefined') {
+                if (!option.length) {
+                    return null;
+                }
+
+                var factor = parseFloat(option.attr('data-factor') || '0') || 0;
+                var unitType = (option.attr('data-unit-type') || '').toLowerCase().trim();
+                if (factor <= 0 || !unitType) {
+                    return null;
+                }
+
+                return { factor: factor, unitType: unitType };
+            }
+
+            var fromMeta = getMetaByCode(from);
+            var toMeta = getMetaByCode(to);
+            if (!fromMeta || !toMeta || fromMeta.unitType !== toMeta.unitType) {
                 return null;
             }
 
-            var valueInGram = value * massUnitToGram[from];
-            return valueInGram / massUnitToGram[to];
+            var valueInBase = value * fromMeta.factor;
+            return valueInBase / toMeta.factor;
         }
 
         function shortUnitLabel(unit) {
             var normalized = (unit || '').toLowerCase().trim();
-            var map = {
-                kilogram: 'kg',
-                gram: 'gm',
-                milligram: 'mg',
-                ounce: 'oz',
-                piece: 'pc',
-                liter: 'ltr',
-                tola: 'tola'
-            };
+            var option = $('#weight_unit option').filter(function() {
+                return (($(this).val() || '').toLowerCase().trim() === normalized);
+            }).first();
 
-            return map[normalized] || unit;
+            if (!option.length) {
+                return unit;
+            }
+
+            var text = (option.text() || '').trim();
+            if (text === '') {
+                return unit;
+            }
+
+            var firstPart = text.split('-')[0] || text;
+            return firstPart.trim();
         }
 
         function updateProductStockInfo() {

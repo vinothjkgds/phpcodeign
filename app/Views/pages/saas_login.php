@@ -65,10 +65,6 @@
                 <div class="my-3 d-grid gap-2">
                   <button type="submit" id="submitBtn" class="btn btn-primary btn-lg fw-medium auth-form-btn">LOGIN</button>
                 </div>
-
-                <div class="mt-3 text-muted small text-center">
-                  Demo: admin@saas.local / admin123
-                </div>
               </form>
             </div>
           </div>

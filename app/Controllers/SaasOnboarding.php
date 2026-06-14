@@ -36,7 +36,7 @@ class SaasOnboarding extends BaseController
             'proposed_shop_name' => 'required|max_length[255]',
             'owner_name' => 'required|max_length[255]',
             'owner_email' => 'required|valid_email|max_length[255]',
-            'owner_mobile' => 'permit_empty|max_length[20]',
+            'owner_mobile' => 'required|exact_length[10]|regex_match[/^[6-9][0-9]{9}$/]',
             'city' => 'permit_empty|max_length[100]',
             'state_name' => 'permit_empty|max_length[100]',
             'country' => 'permit_empty|max_length[100]',

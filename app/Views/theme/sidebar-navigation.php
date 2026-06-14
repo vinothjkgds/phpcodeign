@@ -128,6 +128,23 @@
       </div>
     </li>
     <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="collapse" href="#nav_stockunit" aria-expanded="<?= current_controller() === 'stockunit' ? 'true' : 'false' ?>" aria-controls="nav_stockunit">
+        <i class="mdi mdi-ruler menu-icon"></i>
+        <span class="menu-title">Stock Units</span>
+        <i class="menu-arrow"></i>
+      </a>
+      <div class="collapse <?= current_controller() === 'stockunit' ? 'show' : '' ?>" id="nav_stockunit">
+        <ul class="nav flex-column sub-menu">
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'stockunit' && current_method() === 'add') ? 'active' : '' ?>" href="<?= base_url('stockunit/add') ?>">Add Unit</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <?= (current_controller() === 'stockunit' && current_method() === 'index') ? 'active' : '' ?>" href="<?= base_url('stockunit') ?>">Manage Units</a>
+          </li>
+        </ul>
+      </div>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" data-bs-toggle="collapse" href="#nav_salepurchase" aria-expanded="<?= current_controller() === 'salepurchase' ? 'true' : 'false' ?>" aria-controls="nav_salepurchase">
         <i class="mdi mdi-swap-horizontal menu-icon"></i>
         <span class="menu-title"><?= lang('App.sidebar.salePurchase') ?></span>

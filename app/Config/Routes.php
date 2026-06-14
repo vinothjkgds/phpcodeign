@@ -83,6 +83,17 @@ $routes->group('category', ['filter' => 'auth'], function($routes) {
     $routes->post('delete/(:segment)', 'Category::delete/$1');
 });
 
+//Stock Unit
+$routes->group('stockunit', ['filter' => 'auth'], function($routes) {
+    $routes->get('', 'Stockunit::index');
+    $routes->get('add', 'Stockunit::add');
+    $routes->get('edit/(:segment)', 'Stockunit::edit/$1');
+    $routes->post('save', 'Stockunit::save');
+    $routes->post('save/(:segment)', 'Stockunit::save/$1');
+    $routes->post('getStockUnitListJson', 'Stockunit::getStockUnitListJson');
+    $routes->post('delete/(:segment)', 'Stockunit::delete/$1');
+});
+
 //Shop
 $routes->group('shop', ['filter' => 'auth'], function($routes) {
     $routes->get('', 'Shop::index');
